@@ -10,8 +10,15 @@
       size: 20,
       speed: 2.5,
       color: "green",
-      fireCooldown: 0
+      fireCooldown: 0,
+      life: 3
     };
+
+    const walls = [
+      { x: 100, y: 100, width: 200, height: 20 },
+      { x: 350, y: 200, width: 20, height: 150 },
+      { x: 200, y: 300, width: 100, height: 20 }
+    ];
 
     let mouseX = 0;
     let mouseY = 0;
@@ -47,16 +54,30 @@
       }
     }
 
+    function checkWallCollision(newX, newY) {
+      for (let wall of walls) {
+        if (
+          newX + player.size > wall.x &&
+          newX - player.size < wall.x + wall.width &&
+          newY + player.size > wall.y &&
+          newY - player.size < wall.y + wall.height
+        ) {
+          return true;
+        }
+      }
+      return false;
+    }
+
     class Room {
       constructor(id) {
         this.id = id;
         this.inimigos = [];
         this.cleared = false;
-        this.neighbors = {}; // { north, south, east, west }
+        this.neighbors = {};
       }
 
       spawnEnemies() {
-        const qtd = Math.floor(Math.random() * 5) + 3; // 3 a 7
+        const qtd = Math.floor(Math.random() * 5) + 3;
         for (let i = 0; i < qtd; i++) {
           this.inimigos.push(this.createEnemy());
         }
@@ -65,7 +86,7 @@
       createEnemy() {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
-        return { x, y, size: 16, speed: 1.2, color: "red", alive: true };
+        return { x, y, size: 16, speed: 1.2, color: "red", life: 3, alive: true };
       }
 
       updateEnemies() {
@@ -76,17 +97,29 @@
           const dist = Math.hypot(dx, dy);
           e.x += (dx / dist) * e.speed;
           e.y += (dy / dist) * e.speed;
+
+          if (Math.hypot(player.x - e.x, player.y - e.y) < player.size + e.size) {
+            player.life--;
+            console.log("Jogador atingido! Vidas restantes: ", player.life);
+            e.alive = false;
+            if (player.life <= 0) {
+              alert("Game Over!");
+              window.location.reload();
+            }
+          }
         }
 
-        // Colisão tiro x inimigo
         for (let i = this.inimigos.length - 1; i >= 0; i--) {
           const e = this.inimigos[i];
           for (let j = projectiles.length - 1; j >= 0; j--) {
             const p = projectiles[j];
             const dist = Math.hypot(e.x - p.x, e.y - p.y);
             if (e.alive && dist < e.size + p.size) {
-              e.alive = false;
+              e.life--;
               projectiles.splice(j, 1);
+              if (e.life <= 0) {
+                e.alive = false;
+              }
               break;
             }
           }
@@ -151,10 +184,18 @@
     }
 
     function update() {
-      if (keys["w"]) player.y -= player.speed;
-      if (keys["s"]) player.y += player.speed;
-      if (keys["a"]) player.x -= player.speed;
-      if (keys["d"]) player.x += player.speed;
+      let newX = player.x;
+      let newY = player.y;
+
+      if (keys["w"]) newY -= player.speed;
+      if (keys["s"]) newY += player.speed;
+      if (keys["a"]) newX -= player.speed;
+      if (keys["d"]) newX += player.speed;
+
+      if (!checkWallCollision(newX, newY)) {
+        player.x = newX;
+        player.y = newY;
+      }
 
       if (player.fireCooldown > 0) player.fireCooldown--;
 
@@ -171,6 +212,12 @@
       ctx.fillStyle = "#111";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
+      // Paredes
+      ctx.fillStyle = "#444";
+      for (let wall of walls) {
+        ctx.fillRect(wall.x, wall.y, wall.width, wall.height);
+      }
+
       currentRoom.drawEnemies();
 
       // Player
@@ -186,6 +233,11 @@
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fill();
       }
+
+      // Vida do jogador
+      ctx.fillStyle = "white";
+      ctx.font = "16px Arial";
+      ctx.fillText("Vida: " + player.life, 10, 20);
     }
 
     function loop() {
