@@ -22,6 +22,7 @@
 
     let mouseX = 0;
     let mouseY = 0;
+    let mouseDown = false;
 
     document.addEventListener("keydown", e => keys[e.key] = true);
     document.addEventListener("keyup", e => keys[e.key] = false);
@@ -33,7 +34,11 @@
     });
 
     canvas.addEventListener("mousedown", () => {
-      shootTowardMouse();
+      mouseDown = true;
+    });
+
+    canvas.addEventListener("mouseup", () => {
+      mouseDown = false;
     });
 
     function shootTowardMouse() {
@@ -50,7 +55,7 @@
           size: 6,
           color: "yellow"
         });
-        player.fireCooldown = 10;
+        player.fireCooldown = 20;
       }
     }
 
@@ -206,6 +211,9 @@
 
       currentRoom.updateEnemies();
       checkRoomTransition();
+      if (mouseDown) {
+        shootTowardMouse();
+      }
     }
 
     function draw() {
