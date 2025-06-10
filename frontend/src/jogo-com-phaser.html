@@ -1,0 +1,542 @@
+<!--
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>O Último Guardião - Phaser</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      border: 2px solid #444;
+    }
+  </style>
+</head>
+<body>
+
+<script>
+const config = {
+  type: Phaser.AUTO,
+width: 900,
+height: 600,
+  physics: {
+    default: 'arcade',
+    arcade: { debug: false }
+  },
+  scene: { preload, create, update }
+};
+
+let player;
+let cursors;
+let bullets = [];
+let enemyBullets = [];  // ➕ balas inimigas
+let canShoot = true;
+let shootCooldown = 300;
+let mousePointer;
+let playerLife = 3;
+let hudText;
+let currentRoomIndex = 0;
+let rooms = [];
+let door = { x: 0, y: 0, width: 40, height: 40, open: false, direction: null };
+let enemyShootCooldown = 1000; // ➕ intervalo de tiro inimigo
+let miniMap = [];  // Armazena posições das salas
+let miniMapOffset = { x: 3, y: 3 }; // Posição inicial no meio de uma grade 7x7
+let visitedRooms = new Set();
+let isInvulnerable = false;
+let invulnDuration = 1500; // milissegundos
+let lastDamageTime = 0;
+let blinkInterval;
+
+const game = new Phaser.Game(config);
+
+const directions = ['north', 'south', 'east', 'west'];
+
+class Room {
+  constructor(name, next = null) {
+    this.name = name;
+    this.next = next;
+    this.enemies = [];
+    this.cleared = false;
+    this.exitDirection = null;
+    this.spawned = false;
+  }
+
+  spawnEnemies() {
+    const roomIndex = rooms.indexOf(this);
+    let chanceBonus = Phaser.Math.Between(0, 100) < roomIndex * 2 ? 2 : 0;
+    this.totalEnemiesToSpawn = 6 + Math.floor(roomIndex * 1.5) + chanceBonus;
+    this.maxEnemiesPerWave = Math.min(4 + Math.floor(roomIndex / 3), 10);
+    this.spawnedEnemies = 0;
+    this.waveCooldown = Math.max(3000, 5500 - roomIndex * 100);
+
+    const spawnWave = () => {
+      if (!rooms[currentRoomIndex] || this.spawnedEnemies >= this.totalEnemiesToSpawn) return;
+
+      let enemiesToSpawnNow = Math.min(
+        this.maxEnemiesPerWave,
+        this.totalEnemiesToSpawn - this.spawnedEnemies
+      );
+
+      for (let i = 0; i < enemiesToSpawnNow; i++) {
+        const x = Phaser.Math.Between(50, config.width - 50);
+        const y = Phaser.Math.Between(50, config.height - 50);
+
+        const progress = roomIndex / rooms.length;
+        let type;
+        const rand = Phaser.Math.Between(1, 100);
+
+        if (rand < 20) {
+          type = 'rapido'; // 20%
+        } else if (rand < 40) {
+          type = 'atirador'; // 20%
+        } else if (rand < 60) {
+          type = 'bruto'; // 20%
+        } else {
+          type = 'normal'; // 40%
+        }
+
+        let shoots = false;
+        let speed = 50;
+        let life = 2;
+        let shootCooldown;
+
+        switch (type) {
+          case 'rapido':
+            speed = 100 + Math.floor(progress * 200);
+            life = 1 + Math.floor(progress * 9);
+            shoots = false;
+            break;
+          case 'atirador':
+            speed = 20 + Math.floor(progress * 10);
+            life = 2 + Math.floor(progress * 18);
+            shoots = true;
+            shootCooldown = Phaser.Math.Between(
+              500 - Math.floor(progress * 250),
+              1000 - Math.floor(progress * 350)
+            );
+            break;
+          case 'bruto':
+            speed = 50 + Math.floor(progress * 100);
+            life = 5 + Math.floor(progress * 45);
+            shoots = false;
+            break;
+          case 'normal':
+            speed = 30 + Math.floor(progress * 40);
+            life = 3 + Math.floor(progress * 27);
+            shoots = true;
+            shootCooldown = Phaser.Math.Between(
+              2000 - Math.floor(progress * 1000),
+              5000 - Math.floor(progress * 2000)
+            );
+            break;
+        }
+
+        const enemy = {
+          x,
+          y,
+          size: 30,
+          life,
+          active: true,
+          lastShot: 0,
+          speed,
+          shoots,
+          type
+        };
+
+        if (shoots) {
+          enemy.shootCooldown = shootCooldown;
+        }
+
+        this.enemies.push(enemy);
+        this.spawnedEnemies++;
+      }
+
+      if (this.spawnedEnemies < this.totalEnemiesToSpawn) {
+        setTimeout(spawnWave, this.waveCooldown);
+      }
+    };
+
+    spawnWave();
+    this.spawned = true;
+  }
+}
+
+function preload() {}
+
+function create() {
+  this.cameras.main.setBackgroundColor('#111');
+  mousePointer = this.input.activePointer;
+  cursors = this.input.keyboard.addKeys('W,A,S,D');
+
+  player = { x: 320, y: 240, size: 40, speed: 150 };
+
+  hudText = this.add.text(10, 10, '', { font: '16px Arial', fill: '#fff' }).setDepth(1);
+
+  createRooms();
+
+  this.input.on('pointerdown', () => {
+    if (canShoot) {
+      shoot();
+      canShoot = false;
+      setTimeout(() => canShoot = true, shootCooldown);
+    }
+  });
+
+  setDoorPosition();
+}
+
+function createRooms() {
+  const maxRooms = 25;
+  rooms = [];
+
+  const opposites = {
+    north: 'south',
+    south: 'north',
+    east: 'west',
+    west: 'east'
+  };
+
+  const dirOffsets = {
+    north: { x: 0, y: -1 },
+    south: { x: 0, y: 1 },
+    east:  { x: 1, y: 0 },
+    west:  { x: -1, y: 0 }
+  };
+
+  let currentPos = { x: 0, y: 0 };
+  let usedPositions = new Set(["0,0"]);
+  let previousDirection = null;
+
+  for (let i = 0; i < maxRooms; i++) {
+    const room = new Room(`Sala ${i + 1} de 25`);
+    room.gridPos = { ...currentPos };
+    rooms.push(room);
+
+    const possibleDirs = directions.filter(dir =>
+      dir !== opposites[previousDirection] && dir !== previousDirection
+    );
+
+    let chosenDir = null;
+    let attempts = 0;
+
+    while (possibleDirs.length > 0 && attempts < 10) {
+      const dir = Phaser.Utils.Array.RemoveRandomElement(possibleDirs);
+      const offset = dirOffsets[dir];
+      const nextX = currentPos.x + offset.x;
+      const nextY = currentPos.y + offset.y;
+      const key = `${nextX},${nextY}`;
+
+      if (!usedPositions.has(key)) {
+        chosenDir = dir;
+        currentPos = { x: nextX, y: nextY };
+        usedPositions.add(key);
+        break;
+      }
+
+      attempts++;
+    }
+
+    room.exitDirection = chosenDir;
+    previousDirection = chosenDir;
+
+    if (!chosenDir) break; // Sem espaço para continuar
+  }
+
+  for (let i = 0; i < rooms.length - 1; i++) {
+    rooms[i].next = rooms[i + 1];
+  }
+  currentRoomIndex = 0;
+  visitedRooms = new Set([0]);
+  setTimeout(() => {
+    rooms[0].spawnEnemies();
+    rooms[0].spawned = true;
+  }, 500); 
+}
+
+
+function setDoorPosition() {
+  const currentRoom = rooms[currentRoomIndex];
+  const dir = currentRoom.exitDirection;
+  door.direction = dir;
+  door.open = false;
+
+  switch (dir) {
+    case 'north':
+      door.x = config.width / 2 - door.width / 2;
+      door.y = 0;
+      break;
+    case 'south':
+      door.x = config.width / 2 - door.width / 2;
+      door.y = config.height - door.height;
+      break;
+    case 'east':
+      door.x = config.width - door.width;
+      door.y = config.height / 2 - door.height / 2;
+      break;
+    case 'west':
+      door.x = 0;
+      door.y = config.height / 2 - door.height / 2;
+      break;
+  }
+}
+
+function update(time, delta) {
+  const speed = player.speed * (delta / 1000);
+ let dx = 0;
+let dy = 0;
+
+  if (cursors.W.isDown) dy -= 1;
+  if (cursors.S.isDown) dy += 1;
+  if (cursors.A.isDown) dx -= 1;
+  if (cursors.D.isDown) dx += 1;
+
+  if (dx !== 0 || dy !== 0) {
+    const len = Math.hypot(dx, dy);
+    dx /= len;
+    dy /= len;
+    player.x += dx * player.speed * (delta / 1000);
+    player.y += dy * player.speed * (delta / 1000);
+  }
+
+  player.x = Phaser.Math.Clamp(player.x, player.size / 2, config.width - player.size / 2);
+  player.y = Phaser.Math.Clamp(player.y, player.size / 2, config.height - player.size / 2);
+
+  const currentRoom = rooms[currentRoomIndex];
+
+  currentRoom.enemies.forEach(enemy => {
+    if (!enemy.active) return;
+    const dx = player.x - enemy.x;
+    const dy = player.y - enemy.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0) {
+      enemy.x += (dx / dist) * enemy.speed * (delta / 1000);
+      enemy.y += (dy / dist) * enemy.speed * (delta / 1000);
+    }
+
+    // ➕ Inimigo atira
+   if (enemy.shoots && time - enemy.lastShot > enemy.shootCooldown) {
+    enemyShoot(enemy);
+    enemy.lastShot = time;
+   }
+  });
+
+  bullets.forEach(bullet => {
+    bullet.x += bullet.vx * (delta / 1000);
+    bullet.y += bullet.vy * (delta / 1000);
+  });
+
+  bullets = bullets.filter(bullet => {
+    let hit = false;
+    currentRoom.enemies.forEach(enemy => {
+      if (enemy.active && Phaser.Math.Distance.Between(bullet.x, bullet.y, enemy.x, enemy.y) < (enemy.size / 2)) {
+        enemy.life--;
+        bullet.dead = true;
+        if (enemy.life <= 0) {
+          enemy.active = false;
+        }
+        hit = true;
+      }
+    });
+    return !bullet.dead;
+  });
+
+  // ➕ movimentação das balas inimigas
+  enemyBullets.forEach(bullet => {
+    bullet.x += bullet.vx * (delta / 1000);
+    bullet.y += bullet.vy * (delta / 1000);
+  });
+
+  enemyBullets = enemyBullets.filter(bullet => {
+  if (
+    Phaser.Math.Distance.Between(bullet.x, bullet.y, player.x, player.y) < player.size / 2 &&
+    !isInvulnerable
+  ) {
+    takeDamage(); // 👈 Usa a função que ativa invulnerabilidade e piscar
+    return false; // Remove a bala
+  }
+  return bullet.x > 0 && bullet.x < config.width && bullet.y > 0 && bullet.y < config.height;
+});
+
+  currentRoom.enemies.forEach(enemy => {
+  if (!enemy.active) return;
+  if (Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y) < (player.size / 2)) {
+    if (!isInvulnerable) {
+      takeDamage();
+    }
+  }
+});
+
+  if (currentRoom.spawned &&
+      !currentRoom.cleared &&
+      currentRoom.enemies.length > 0 &&
+      currentRoom.enemies.every(e => !e.active)) {
+      currentRoom.cleared = true;
+      door.open = true;
+      console.log(`Sala limpa! Porta aberta ao ${door.direction}`);
+    }
+
+  if (door.open && checkPlayerAtDoor()) {
+  if (currentRoom.next) {
+    currentRoomIndex++;
+    visitedRooms.add(currentRoomIndex); // ← marca como visitada
+    bullets = [];
+    enemyBullets = [];
+    movePlayerToNewPosition();
+    setDoorPosition();
+
+    const nextRoom = rooms[currentRoomIndex];
+  if (!nextRoom.spawned) {
+      setTimeout(() => {
+        nextRoom.spawnEnemies();
+        nextRoom.spawned = true; // ✅ SÓ marca como "spawned" depois que realmente spawnou
+      }, 500); // 2 segundos de atraso real
+    }
+
+    console.log('Avançou para a próxima sala!');
+  } else {
+    alert("Parabéns! Você completou todas as salas!");
+    location.reload();
+  }
+}
+
+  hudText.setText(`Vida: ${playerLife} | ${currentRoom.name}`);
+
+  draw(this);
+}
+
+function draw(scene) {
+  scene.cameras.main.setBackgroundColor('#111');
+  scene.children.list.forEach(child => {
+    if (child.type === "Graphics") child.destroy();
+  });
+
+  const g = scene.add.graphics();
+
+  if (door.open) {
+    g.fillStyle(0x00ff00, 1);
+  } else {
+    g.fillStyle(0xff0000, 1);
+  }
+  g.fillRect(door.x, door.y, door.width, door.height);
+
+  if (player.visible !== false) {
+  g.fillStyle(0x00ff00, 1);
+  g.fillRect(player.x - player.size / 2, player.y - player.size / 2, player.size, player.size);
+}
+
+  const currentRoom = rooms[currentRoomIndex];
+  currentRoom.enemies.forEach(enemy => {
+    if (!enemy.active) return;
+    let color = 0xff0000; // normal
+    switch (enemy.type) {
+      case 'bruto': color = 0xff9900; break;       // laranja
+      case 'rapido': color = 0x66ccff; break;      // azul claro
+      case 'atirador': color = 0x000080; break;    // azul escuro
+    }
+g.fillStyle(color, 1);
+    g.fillStyle(color, 1);
+    g.fillRect(enemy.x - enemy.size / 2, enemy.y - enemy.size / 2, enemy.size, enemy.size);
+  });
+
+  bullets.forEach(bullet => {
+    g.fillStyle(0xffff00, 1);
+    g.fillRect(bullet.x - 4, bullet.y - 4, 8, 8);
+  });
+
+  // ➕ desenha balas inimigas
+  enemyBullets.forEach(bullet => {
+    g.fillStyle(0xff00ff, 1); // roxo
+    g.fillRect(bullet.x - 4, bullet.y - 4, 8, 8);
+  });
+ }
+
+function shoot() {
+  const dx = mousePointer.worldX - player.x;
+  const dy = mousePointer.worldY - player.y;
+  const len = Math.hypot(dx, dy);
+  const bullet = {
+    x: player.x,
+    y: player.y,
+    vx: (dx / len) * 300,
+    vy: (dy / len) * 300
+  };
+  bullets.push(bullet);
+}
+
+// ➕ função inimigo atira
+function enemyShoot(enemy) {
+  const dx = player.x - enemy.x;
+  const dy = player.y - enemy.y;
+  const len = Math.hypot(dx, dy);
+  const bullet = {
+    x: enemy.x,
+    y: enemy.y,
+    vx: (dx / len) * 150,
+    vy: (dy / len) * 150,
+    fromEnemy: true
+  };
+  enemyBullets.push(bullet);
+}
+
+function checkPlayerAtDoor() {
+  return (
+    player.x + player.size / 2 >= door.x &&
+    player.x - player.size / 2 <= door.x + door.width &&
+    player.y + player.size / 2 >= door.y &&
+    player.y - player.size / 2 <= door.y + door.height
+  );
+}
+
+function movePlayerToNewPosition() {
+  switch (door.direction) {
+    case 'north':
+      player.y = config.height - player.size;
+      break;
+    case 'south':
+      player.y = player.size;
+      break;
+    case 'east':
+      player.x = player.size;
+      break;
+    case 'west':
+      player.x = config.width - player.size;
+      break;
+  }
+}
+
+function takeDamage() {
+  playerLife--;
+  isInvulnerable = true;
+  lastDamageTime = Date.now();
+
+  if (playerLife <= 0) {
+    alert("Game Over!");
+    location.reload();
+    return;
+  }
+
+  let blink = true;
+  blinkInterval = setInterval(() => {
+    player.visible = blink;
+    blink = !blink;
+  }, 75);
+
+  setTimeout(() => {
+    clearInterval(blinkInterval);
+    player.visible = true;
+    isInvulnerable = false;
+  }, invulnDuration);
+}
+
+</script>
+
+
+</body>
+</html>
