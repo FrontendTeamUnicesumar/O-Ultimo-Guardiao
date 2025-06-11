@@ -1,4 +1,3 @@
-<!--
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -24,8 +23,8 @@
 <script>
 const config = {
   type: Phaser.AUTO,
-width: 900,
-height: 600,
+width: 650,
+height: 450,
   physics: {
     default: 'arcade',
     arcade: { debug: false }
@@ -38,7 +37,7 @@ let cursors;
 let bullets = [];
 let enemyBullets = [];  // ➕ balas inimigas
 let canShoot = true;
-let shootCooldown = 300;
+let shootCooldown = 400;
 let mousePointer;
 let playerLife = 3;
 let hudText;
@@ -53,6 +52,7 @@ let isInvulnerable = false;
 let invulnDuration = 1500; // milissegundos
 let lastDamageTime = 0;
 let blinkInterval;
+let bulletSpeed;
 
 const game = new Phaser.Game(config);
 
@@ -85,8 +85,18 @@ class Room {
       );
 
       for (let i = 0; i < enemiesToSpawnNow; i++) {
-        const x = Phaser.Math.Between(50, config.width - 50);
-        const y = Phaser.Math.Between(50, config.height - 50);
+
+      const minSpawnDistanceFromPlayer = 120;
+      let x, y;
+      let attempts = 0;
+      do {
+        x = Phaser.Math.Between(50, config.width - 50);
+        y = Phaser.Math.Between(50, config.height - 50);
+        attempts++;
+      } while (
+        Phaser.Math.Distance.Between(x, y, player.x, player.y) < minSpawnDistanceFromPlayer &&
+        attempts < 20
+      );
 
         const progress = roomIndex / rooms.length;
         let type;
@@ -109,31 +119,33 @@ class Room {
 
         switch (type) {
           case 'rapido':
-            speed = 100 + Math.floor(progress * 200);
+            speed = 150 + Math.floor(progress * 200);
             life = 1 + Math.floor(progress * 9);
             shoots = false;
             break;
           case 'atirador':
-            speed = 20 + Math.floor(progress * 10);
+            speed = 50 + Math.floor(progress * 15);
             life = 2 + Math.floor(progress * 18);
             shoots = true;
+            bulletSpeed = 250 + Math.floor(progress * 50); // ← MAIS LENTO
             shootCooldown = Phaser.Math.Between(
-              500 - Math.floor(progress * 250),
-              1000 - Math.floor(progress * 350)
+              400 - Math.floor(progress * 250),
+              500 - Math.floor(progress * 350)
             );
             break;
           case 'bruto':
-            speed = 50 + Math.floor(progress * 100);
+            speed = 100 + Math.floor(progress * 100);
             life = 5 + Math.floor(progress * 45);
             shoots = false;
             break;
           case 'normal':
-            speed = 30 + Math.floor(progress * 40);
+            speed = 75 + Math.floor(progress * 25);
             life = 3 + Math.floor(progress * 27);
+            bulletSpeed = 400 + Math.floor(progress * 75); // ← MAIS RÁPIDO
             shoots = true;
             shootCooldown = Phaser.Math.Between(
-              2000 - Math.floor(progress * 1000),
-              5000 - Math.floor(progress * 2000)
+              750 - Math.floor(progress * 1000),
+              800 - Math.floor(progress * 2000)
             );
             break;
         }
@@ -152,6 +164,7 @@ class Room {
 
         if (shoots) {
           enemy.shootCooldown = shootCooldown;
+          enemy.bulletSpeed = bulletSpeed;
         }
 
         this.enemies.push(enemy);
@@ -172,23 +185,20 @@ function preload() {}
 
 function create() {
   this.cameras.main.setBackgroundColor('#111');
-  mousePointer = this.input.activePointer;
   cursors = this.input.keyboard.addKeys('W,A,S,D');
+
+      shootKeys = this.input.keyboard.addKeys({
+      up: Phaser.Input.Keyboard.KeyCodes.UP,
+      down: Phaser.Input.Keyboard.KeyCodes.DOWN,
+      left: Phaser.Input.Keyboard.KeyCodes.LEFT,
+      right: Phaser.Input.Keyboard.KeyCodes.RIGHT
+    });
 
   player = { x: 320, y: 240, size: 40, speed: 150 };
 
   hudText = this.add.text(10, 10, '', { font: '16px Arial', fill: '#fff' }).setDepth(1);
 
   createRooms();
-
-  this.input.on('pointerdown', () => {
-    if (canShoot) {
-      shoot();
-      canShoot = false;
-      setTimeout(() => canShoot = true, shootCooldown);
-    }
-  });
-
   setDoorPosition();
 }
 
@@ -257,7 +267,7 @@ function createRooms() {
   setTimeout(() => {
     rooms[0].spawnEnemies();
     rooms[0].spawned = true;
-  }, 500); 
+  }, 750); 
 }
 
 
@@ -288,9 +298,10 @@ function setDoorPosition() {
 }
 
 function update(time, delta) {
+
   const speed = player.speed * (delta / 1000);
- let dx = 0;
-let dy = 0;
+  let dx = 0;
+  let dy = 0;
 
   if (cursors.W.isDown) dy -= 1;
   if (cursors.S.isDown) dy += 1;
@@ -303,6 +314,26 @@ let dy = 0;
     dy /= len;
     player.x += dx * player.speed * (delta / 1000);
     player.y += dy * player.speed * (delta / 1000);
+  }
+
+  if (canShoot) {
+  if (shootKeys.up.isDown) {
+    shoot('up');
+    canShoot = false;
+    setTimeout(() => canShoot = true, shootCooldown);
+  } else if (shootKeys.down.isDown) {
+    shoot('down');
+    canShoot = false;
+    setTimeout(() => canShoot = true, shootCooldown);
+  } else if (shootKeys.left.isDown) {
+    shoot('left');
+    canShoot = false;
+    setTimeout(() => canShoot = true, shootCooldown);
+  } else if (shootKeys.right.isDown) {
+    shoot('right');
+    canShoot = false;
+    setTimeout(() => canShoot = true, shootCooldown);
+  }
   }
 
   player.x = Phaser.Math.Clamp(player.x, player.size / 2, config.width - player.size / 2);
@@ -396,7 +427,7 @@ let dy = 0;
       setTimeout(() => {
         nextRoom.spawnEnemies();
         nextRoom.spawned = true; // ✅ SÓ marca como "spawned" depois que realmente spawnou
-      }, 500); // 2 segundos de atraso real
+      }, 750);
     }
 
     console.log('Avançou para a próxima sala!');
@@ -406,8 +437,8 @@ let dy = 0;
   }
 }
 
+  separateEnemies(currentRoom.enemies);
   hudText.setText(`Vida: ${playerLife} | ${currentRoom.name}`);
-
   draw(this);
 }
 
@@ -447,7 +478,7 @@ g.fillStyle(color, 1);
 
   bullets.forEach(bullet => {
     g.fillStyle(0xffff00, 1);
-    g.fillRect(bullet.x - 4, bullet.y - 4, 8, 8);
+    g.fillRect(bullet.x - 5, bullet.y - 5, 10, 10);
   });
 
   // ➕ desenha balas inimigas
@@ -457,16 +488,24 @@ g.fillStyle(color, 1);
   });
  }
 
-function shoot() {
-  const dx = mousePointer.worldX - player.x;
-  const dy = mousePointer.worldY - player.y;
-  const len = Math.hypot(dx, dy);
+function shoot(direction) {
+  let vx = 0, vy = 0;
+  const speed = 500;
+
+  switch (direction) {
+    case 'up': vy = -speed; break;
+    case 'down': vy = speed; break;
+    case 'left': vx = -speed; break;
+    case 'right': vx = speed; break;
+  }
+
   const bullet = {
     x: player.x,
     y: player.y,
-    vx: (dx / len) * 300,
-    vy: (dy / len) * 300
+    vx: vx,
+    vy: vy
   };
+
   bullets.push(bullet);
 }
 
@@ -478,8 +517,8 @@ function enemyShoot(enemy) {
   const bullet = {
     x: enemy.x,
     y: enemy.y,
-    vx: (dx / len) * 150,
-    vy: (dy / len) * 150,
+    vx: (dx / len) * enemy.bulletSpeed,
+    vy: (dy / len) * enemy.bulletSpeed,
     fromEnemy: true
   };
   enemyBullets.push(bullet);
@@ -533,6 +572,35 @@ function takeDamage() {
     player.visible = true;
     isInvulnerable = false;
   }, invulnDuration);
+}
+
+function separateEnemies(enemies) {
+  const minDistance = 33; // distância mínima entre centros dos inimigos
+
+  for (let i = 0; i < enemies.length; i++) {
+    const e1 = enemies[i];
+    if (!e1.active) continue;
+
+    for (let j = i + 1; j < enemies.length; j++) {
+      const e2 = enemies[j];
+      if (!e2.active) continue;
+
+      const dx = e2.x - e1.x;
+      const dy = e2.y - e1.y;
+      const dist = Math.hypot(dx, dy);
+
+      if (dist > 0 && dist < minDistance) {
+        const overlap = (minDistance - dist) / 2;
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        e1.x -= nx * overlap;
+        e1.y -= ny * overlap;
+        e2.x += nx * overlap;
+        e2.y += ny * overlap;
+      }
+    }
+  }
 }
 
 </script>
