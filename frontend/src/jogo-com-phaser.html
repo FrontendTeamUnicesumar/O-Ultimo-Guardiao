@@ -35,6 +35,8 @@ const config = {
 let boss = null;
 let player;
 let cursors;
+let musicTracks = {};
+let currentMusic = null;
 let bullets = [];
 let enemyBullets = [];  // ➕ balas inimigas
 let canShoot = true;
@@ -230,7 +232,13 @@ class Room {
   }
 }
 
-function preload() {}
+function preload() {
+  this.load.audio('theme_combat', 'audio/music-combat.mp3');
+  this.load.audio('theme_item', 'audio/music-item.mp3');
+  this.load.audio('theme_boss', 'audio/music-boss.mp3');
+  this.load.audio('sfx_hurt', 'audio/sfx-hit.wav');
+  this.load.audio('sfx_gameover', 'audio/sfx-game-over.wav');
+}
 
 function create() {
   this.cameras.main.setBackgroundColor('#111');
@@ -290,6 +298,7 @@ function create() {
 
   createRooms();
   setDoorPosition();
+  playMusicForRoom(this, 'combat');
 }
 
 function createRooms() {
@@ -562,7 +571,7 @@ function update(time, delta) {
     Phaser.Math.Distance.Between(bullet.x, bullet.y, player.x, player.y) < player.size / 2 &&
     !isInvulnerable
   ) {
-    takeDamage(); // 👈 Usa a função que ativa invulnerabilidade e piscar
+    takeDamage(this); // 👈 Usa a função que ativa invulnerabilidade e piscar
     return false; // Remove a bala
   }
     return bullet.x > 0 && bullet.x < config.width && bullet.y > 0 && bullet.y < config.height;
@@ -572,7 +581,7 @@ function update(time, delta) {
   if (!enemy.active) return;
   if (Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y) < (player.size / 2)) {
     if (!isInvulnerable) {
-        takeDamage();
+        takeDamage(this);
       }
     }
   });
@@ -580,7 +589,7 @@ function update(time, delta) {
     if (boss && boss.active) {
     if (Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y) < (player.size / 2 + boss.size / 2)) {
       if (!isInvulnerable) {
-        takeDamage();
+        takeDamage(this);
       }
     }
   }
@@ -629,6 +638,9 @@ if (currentRoom.type === 'item') {
       setDoorPosition();
 
       const nextRoom = rooms[currentRoomIndex];
+
+      playMusicForRoom(this, nextRoom.type);
+
       if (!nextRoom.spawned) {
         setTimeout(() => {
           if (nextRoom.type === 'boss') {
@@ -867,14 +879,18 @@ function movePlayerToNewPosition() {
   }
 }
 
-function takeDamage() {
+function takeDamage(scene) {
   const damage = 1 * damageTakenMultiplier;
   playerLife -= damage;
+
+  scene.sound.play('sfx_hurt', { volume: 0.6 });
 
   isInvulnerable = true;
   lastDamageTime = Date.now();
 
   if (playerLife <= 0) {
+    scene.sound.stopAll();
+    scene.sound.play('sfx_gameover');
     alert("Game Over!");
     location.reload();
     return;
@@ -986,6 +1002,33 @@ function bossAttack(time, scene) {
     }
     boss.spiralAngle += 0.5; // Rotaciona a espiral para o próximo ataque
   }
+}
+
+function playMusicForRoom(scene, roomType) {
+  let musicKey;
+
+  // Decide qual música tocar com base no tipo da sala
+  if (roomType === 'boss') {
+    musicKey = 'theme_boss';
+  } else if (roomType === 'item') {
+    musicKey = 'theme_calm';
+  } else {
+    musicKey = 'theme_combat';
+  }
+
+  // Se a música certa já estiver tocando, não faz nada
+  if (currentMusic && currentMusic.key === musicKey) {
+    return;
+  }
+
+  // Para qualquer música que estiver tocando
+  if (currentMusic) {
+    currentMusic.stop();
+  }
+
+  // Toca a nova música em loop e com volume mais baixo
+  currentMusic = scene.sound.add(musicKey, { loop: true, volume: 0.4 });
+  currentMusic.play();
 }
 
 </script>
