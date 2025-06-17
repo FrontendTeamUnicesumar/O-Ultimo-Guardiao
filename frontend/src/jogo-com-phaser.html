@@ -32,6 +32,7 @@ const config = {
   scene: { preload, create, update }
 };
 
+let boss = null;
 let player;
 let cursors;
 let bullets = [];
@@ -122,7 +123,7 @@ class Room {
     this.maxEnemiesPerWave = Math.min(4 + Math.floor(roomIndex / 3), 10);
     this.spawnedEnemies = 0;
     this.waveCooldown = Math.max(4000, 6000 - roomIndex * 100);
-    if (this.type !== 'combat') return;
+    if (this.type === 'boss' || this.type === 'item') return;
 
     const spawnWave = () => {
       if (!rooms[currentRoomIndex] || this.spawnedEnemies >= this.totalEnemiesToSpawn) return;
@@ -534,6 +535,22 @@ function update(time, delta) {
     return !bullet.dead;
   });
 
+  if (boss && boss.active) {
+    bullets = bullets.filter(bullet => {
+      if (Phaser.Math.Distance.Between(bullet.x, bullet.y, boss.x, boss.y) < (boss.size / 2)) {
+        const damage = (player.damageMultiplier || 1);
+        boss.life -= damage;
+        bullet.dead = true; // Marca a bala para remoção
+
+        if (boss.life <= 0) {
+          boss.active = false;
+          // Vitória! A porta se abrirá
+        }
+        return false; // Remove a bala
+      }
+      return true; // Mantém a bala
+    });
+  }
   // ➕ movimentação das balas inimigas
   enemyBullets.forEach(bullet => {
     bullet.x += bullet.vx * (delta / 1000);
@@ -560,36 +577,71 @@ function update(time, delta) {
     }
   });
 
-  if (currentRoom.type === 'item') {
+    if (boss && boss.active) {
+    if (Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y) < (player.size / 2 + boss.size / 2)) {
+      if (!isInvulnerable) {
+        takeDamage();
+      }
+    }
+  }
+
+  if (boss && boss.active) {
+    // Movimento simples do chefe (segue o jogador lentamente)
+    const dx = player.x - boss.x;
+    const dy = player.y - boss.y;
+    const dist = Math.hypot(dx, dy);
+    if (dist > 0) {
+      boss.x += (dx / dist) * boss.speed * (delta / 1000);
+      boss.y += (dy / dist) * boss.speed * (delta / 1000);
+    }
+
+    // Chama a função de ataque do chefe
+    bossAttack(time, this);
+  }
+  
+if (currentRoom.type === 'item') {
     door.open = true;
     currentRoom.cleared = true;
-  } else if (currentRoom.spawned &&
-            !currentRoom.cleared &&
-            currentRoom.enemies.length > 0 &&
-            currentRoom.enemies.every(e => !e.active)) {
-      currentRoom.cleared = true;
-      door.open = true;
+  } else if (!currentRoom.cleared) {
+      // Condição para salas de combate normais
+      const combatRoomCleared = currentRoom.type === 'combat' &&
+                                currentRoom.spawned &&
+                                currentRoom.enemies.length > 0 &&
+                                currentRoom.enemies.every(e => !e.active);
 
+      // Condição para a sala do chefe
+      const bossRoomCleared = currentRoom.type === 'boss' &&
+                              boss && !boss.active;
+
+      if (combatRoomCleared || bossRoomCleared) {
+          currentRoom.cleared = true;
+          door.open = true;
+      }
   }
 
   if (door.open && checkPlayerAtDoor()) {
-  if (currentRoom.next) {
-    currentRoomIndex++;
-    visitedRooms.add(currentRoomIndex); // ← marca como visitada
-    bullets = [];
-    enemyBullets = [];
-    movePlayerToNewPosition();
-    setDoorPosition();
+    if (currentRoom.next) {
+      currentRoomIndex++;
+      visitedRooms.add(currentRoomIndex);
+      bullets = [];
+      enemyBullets = [];
+      movePlayerToNewPosition();
+      setDoorPosition();
 
-    const nextRoom = rooms[currentRoomIndex];
-  if (!nextRoom.spawned) {
-      setTimeout(() => {
-        nextRoom.spawnEnemies();
-        nextRoom.spawned = true; // ✅ SÓ marca como "spawned" depois que realmente spawnou
-      }, 750);
-    }
+      const nextRoom = rooms[currentRoomIndex];
+      if (!nextRoom.spawned) {
+        setTimeout(() => {
+          if (nextRoom.type === 'boss') {
+            spawnBoss(this);
+          } else {
+            nextRoom.spawnEnemies();
+          }
+          nextRoom.spawned = true;
+        }, 750);
+      }
     } else {
-      alert("Parabéns! Você completou todas as salas!");
+      // Condição de vitória final
+      alert("Parabéns! Você derrotou o Guardião Final e salvou este mundo!");
       location.reload();
     }
   }
@@ -642,6 +694,32 @@ function draw(scene) {
       enemy.size
     );
   });
+
+  if (boss && boss.active) {
+    // Corpo do chefe
+    g.fillStyle(0x8B008B, 1); // Roxo escuro
+    g.fillRect(
+      boss.x - boss.size / 2,
+      boss.y - boss.size / 2,
+      boss.size,
+      boss.size
+    );
+
+    // Barra de vida do chefe
+    const healthBarWidth = 150;
+    const healthBarHeight = 15;
+    const healthBarX = config.width / 2 - healthBarWidth / 2;
+    const healthBarY = 20;
+
+    // Fundo da barra de vida
+    g.fillStyle(0x333333, 1);
+    g.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+
+    // Vida atual
+    const currentHealthWidth = (boss.life / boss.maxLife) * healthBarWidth;
+    g.fillStyle(0xff0000, 1);
+    g.fillRect(healthBarX, healthBarY, currentHealthWidth, healthBarHeight);
+  }
 
   // 🔥 Balas do jogador com tamanho dinâmico
   bullets.forEach(bullet => {
@@ -792,7 +870,7 @@ function movePlayerToNewPosition() {
 function takeDamage() {
   const damage = 1 * damageTakenMultiplier;
   playerLife -= damage;
-  
+
   isInvulnerable = true;
   lastDamageTime = Date.now();
 
@@ -841,6 +919,72 @@ function separateEnemies(enemies) {
         e2.y += ny * overlap;
       }
     }
+  }
+}
+
+function spawnBoss(scene) {
+  boss = {
+    x: config.width / 2,
+    y: 100,
+    size: 80,
+    life: 100,
+    maxLife: 100,
+    active: true,
+    speed: 75,
+    phase: 1, // O chefe terá fases diferentes
+    attackCooldown: 2500, // Tempo entre ataques
+    lastAttackTime: 0,
+    // Para o ataque em espiral
+    spiralAngle: 0
+  };
+}
+
+function bossAttack(time, scene) {
+  if (!boss || !boss.active || time < boss.lastAttackTime + boss.attackCooldown) {
+    return;
+  }
+  boss.lastAttackTime = time;
+
+  // Lógica de ataque baseada na fase (vida)
+  const lifePercent = boss.life / boss.maxLife;
+
+  // Fase 2: Abaixo de 50% de vida
+  if (lifePercent < 0.5 && boss.phase === 1) {
+    boss.phase = 2;
+    boss.speed *= 1.5; // Fica mais rápido
+    boss.attackCooldown = 1800; // Ataca mais rápido
+    // Efeito visual ou sonoro de fúria poderia ser adicionado aqui
+  }
+
+  // Escolhe um ataque aleatório
+  const attackType = Phaser.Math.Between(1, 3);
+
+  if (attackType === 1) { // Ataque 1: Rajada de tiros teleguiados
+    const numBullets = (boss.phase === 1) ? 3 : 5;
+    const delayPerShot = 150;
+    for (let i = 0; i < numBullets; i++) {
+      setTimeout(() => {
+        if (!boss.active) return;
+        const dx = player.x - boss.x;
+        const dy = player.y - boss.y;
+        const len = Math.hypot(dx, dy);
+        enemyBullets.push({
+          x: boss.x, y: boss.y,
+          vx: (dx / len) * 200, vy: (dy / len) * 200,
+          fromEnemy: true
+        });
+      }, i * delayPerShot);
+    }
+  } else { // Ataque 2: Espiral de projéteis
+    const numBulletsInSpiral = 16;
+    for (let i = 0; i < numBulletsInSpiral; i++) {
+        const angle = boss.spiralAngle + (i * (2 * Math.PI / numBulletsInSpiral));
+        const bulletSpeed = (boss.phase === 1) ? 150 : 200;
+        const vx = Math.cos(angle) * bulletSpeed;
+        const vy = Math.sin(angle) * bulletSpeed;
+        enemyBullets.push({ x: boss.x, y: boss.y, vx, vy, fromEnemy: true });
+    }
+    boss.spiralAngle += 0.5; // Rotaciona a espiral para o próximo ataque
   }
 }
 
