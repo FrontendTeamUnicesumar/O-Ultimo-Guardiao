@@ -205,10 +205,20 @@ class GameScene extends Phaser.Scene {
         this.load.audio('sfx_gameover', 'audio/sfx-game-over.wav');
         this.load.audio('sfx_dash', 'audio/dash-sound.wav');
         this.load.audio('sfx_shoot', 'audio/player-shoot.wav');
+
+        this.load.image('floor_texture', 'images/sala-chao.png');
     }
 
     create() {
-        this.cameras.main.setBackgroundColor('#111');
+        const floor = this.add.tileSprite(
+            this.cameras.main.width / 2, 
+            this.cameras.main.height / 2, 
+            this.cameras.main.width, 
+            this.cameras.main.height, 
+            'floor_texture'
+        );
+
+        floor.setDepth(-1);
 
         this.player.sprite = this.add.sprite(this.player.x, this.player.y, 'player_down').setOrigin(0.5);
         this.player.size = 64;
