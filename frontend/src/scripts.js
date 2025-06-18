@@ -195,7 +195,8 @@ class GameScene extends Phaser.Scene {
         this.load.image('normal_enemy', 'images/characters/olho/inimigo olhos.PNG');
         this.load.image('atirador_enemy', 'images/characters/morte/inimigo morte.PNG');
         this.load.image('rapido_enemy', 'images/characters/monstro/inimigo monstros.PNG');
-
+        this.load.image('bruto_enemy_right', 'images/characters/estatua/inimigo estatua direita.png');
+        this.load.image('bruto_enemy_left', 'images/characters/estatua/inimigo estatua.png');
 
         this.load.audio('theme_combat', 'audio/music-combat.mp3');
         this.load.audio('theme_item', 'audio/music-item.mp3');
@@ -272,6 +273,25 @@ class GameScene extends Phaser.Scene {
                 enemy.sprite.setPosition(enemy.x, enemy.y);
                 enemy.sprite.setVisible(enemy.active);
             }
+
+            currentRoom.enemies.forEach(enemy => {
+                if (enemy.type === 'bruto' && enemy.sprite) {
+
+                    enemy.sprite.setPosition(enemy.x, enemy.y);
+                    enemy.sprite.setVisible(enemy.active);
+
+
+                    const direction = enemy.vx >= 0 ? 'right' : 'left';
+                    if (enemy.direction !== direction) {
+                        enemy.direction = direction;
+                        if (direction === 'right') {
+                            enemy.sprite.setTexture('bruto_enemy_right');
+                        } else {
+                            enemy.sprite.setTexture('bruto_enemy_left');
+                        }
+                    }
+                }
+            });
 
             if (enemy.life <= 0) {
                 enemy.active = false;
@@ -557,11 +577,7 @@ class GameScene extends Phaser.Scene {
         const currentRoom = this.rooms[this.currentRoomIndex];
         currentRoom.enemies.forEach(enemy => {
             if (!enemy.active) return;
-            if (enemy.type !== 'normal' && enemy.type !== 'atirador' && enemy.type !== 'rapido') {
-                let color;
-                switch (enemy.type) {
-                    case 'bruto': color = 0xff9900; break;
-                }
+            if (enemy.type !== 'normal' && enemy.type !== 'atirador' && enemy.type !== 'rapido' && enemy.type !== 'bruto') {
                 this.graphics.fillStyle(color, 1);
                 this.graphics.fillRect(enemy.x - enemy.size / 2, enemy.y - enemy.size / 2, enemy.size, enemy.size);
             }
@@ -669,6 +685,12 @@ class GameScene extends Phaser.Scene {
 
             if (type === 'rapido') {
                 enemy.sprite = this.add.sprite(x, y, 'rapido_enemy').setOrigin(0.5);
+                enemy.sprite.setDisplaySize(enemy.size, enemy.size);
+            }
+
+            if (type === 'bruto') {
+                enemy.direction = 'right';
+                enemy.sprite = this.add.sprite(x, y, 'bruto_enemy_right').setOrigin(0.5);
                 enemy.sprite.setDisplaySize(enemy.size, enemy.size);
             }
 
