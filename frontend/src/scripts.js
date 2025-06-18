@@ -634,8 +634,38 @@ class GameScene extends Phaser.Scene {
         this.graphics.clear();
 
 
-        this.graphics.fillStyle(this.door.open ? 0x00ff00 : 0xff0000, 1);
-        this.graphics.fillRect(this.door.x, this.door.y, this.door.width, this.door.height);
+        // Depois (linha)
+const color = this.door.open ? 0x00ff00 : 0xff0000;
+const thickness = 8; // Espessura da linha
+
+this.graphics.lineStyle(thickness, color, 1);
+
+switch (this.door.direction) {
+    case 'north':
+        this.graphics.beginPath();
+        this.graphics.moveTo(this.door.x, this.door.y + thickness / 2);
+        this.graphics.lineTo(this.door.x + this.door.width, this.door.y + thickness / 2);
+        this.graphics.strokePath();
+        break;
+    case 'south':
+        this.graphics.beginPath();
+        this.graphics.moveTo(this.door.x, this.door.y + this.door.height - thickness / 2);
+        this.graphics.lineTo(this.door.x + this.door.width, this.door.y + this.door.height - thickness / 2);
+        this.graphics.strokePath();
+        break;
+    case 'east':
+        this.graphics.beginPath();
+        this.graphics.moveTo(this.door.x + this.door.width - thickness / 2, this.door.y);
+        this.graphics.lineTo(this.door.x + this.door.width - thickness / 2, this.door.y + this.door.height);
+        this.graphics.strokePath();
+        break;
+    case 'west':
+        this.graphics.beginPath();
+        this.graphics.moveTo(this.door.x + thickness / 2, this.door.y);
+        this.graphics.lineTo(this.door.x + thickness / 2, this.door.y + this.door.height);
+        this.graphics.strokePath();
+        break;
+}
 
         const currentRoom = this.rooms[this.currentRoomIndex];
         currentRoom.enemies.forEach(enemy => {
