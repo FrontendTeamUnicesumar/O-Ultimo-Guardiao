@@ -27,7 +27,9 @@ class StartScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.image('background_start', 'images/start-game-image.png');
+        
+      this.load.image('background_start', 'images/start-game-image.png');
+      this.load.audio('theme_intro', 'audio/music-intro.ogg');
     }
 
     create() {
@@ -36,6 +38,7 @@ class StartScene extends Phaser.Scene {
             .setDisplaySize(this.cameras.main.width, this.cameras.main.height)
             .setTint(0xAAAAAA); 
 
+        this.introMusic = this.sound.play('theme_intro', { loop: true, volume: 0.7 });
       
         this.add.text(this.cameras.main.width / 2, 80, 'O Último Guardião', {
             fontFamily: '"Cinzel Decorative", serif', 
@@ -47,7 +50,7 @@ class StartScene extends Phaser.Scene {
         }).setOrigin(0.5);
 
      
-        const gameStory = "O Rei, consumido pela ganância e pelo medo do poder ancestral, decretou a morte daquele que protege o equilíbrio do mundo. Você, o mais leal cavaleiro do reino, recebeu a ordem final: adentrar as ruínas proibidas e eliminar 'O Último Guardião'. Mas ao cruzar os portões, uma dúvida assola sua alma: você está cumprindo seu dever ou selando o destino de todos?";
+        const gameStory = "O Rei, consumido pela ganância e pelo medo do poder ancestral, decretou a morte daquele que protege o equilíbrio do mundo. Você, o mais leal guerreiro do reino, recebeu a ordem final: adentrar as ruínas proibidas e eliminar 'O Último Guardião'. Mas ao cruzar os portões, uma dúvida assola sua alma: você está cumprindo seu dever ou selando o destino de todos?";
 
   
         const textBackground = this.add.graphics({ fillStyle: { color: 0x000000, alpha: 0.6 } });
@@ -85,6 +88,7 @@ class StartScene extends Phaser.Scene {
     
         startButton.on('pointerdown', () => {
             this.game.canvas.style.cursor = 'default'; 
+            this.introMusic.stop(); 
             this.scene.start('game');
         });
     }
@@ -135,7 +139,7 @@ class VictoryScene extends Phaser.Scene {
 
 
     preload() {
-
+        this.load.audio('theme_victory', 'audio/music-victory.ogg');
         this.load.image('background_victory', 'images/victory-image.png');
     }
 
@@ -144,7 +148,8 @@ class VictoryScene extends Phaser.Scene {
         this.add.image(this.cameras.main.width / 2, this.cameras.main.height / 2, 'background_victory')
             .setDisplaySize(this.cameras.main.width, this.cameras.main.height);
 
- 
+        this.sound.play('theme_victory', { loop: true, volume: 0.5 });
+
         this.add.text(this.cameras.main.width / 2, 80, 'Vitória!', {
             fontFamily: '"Times New Roman", serif',
             fontSize: '60px',
