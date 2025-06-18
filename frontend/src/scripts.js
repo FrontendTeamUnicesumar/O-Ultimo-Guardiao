@@ -191,6 +191,10 @@ class GameScene extends Phaser.Scene {
         this.load.image('player_down', 'images/characters/principal/principal baixo.png');
         this.load.image('player_left', 'images/characters/principal/principal esquerda.png');
         this.load.image('player_right', 'images/characters/principal/principal direita.png');
+
+        this.load.image('normal_enemy', 'images/characters/olho/inimigo olhos.PNG');
+
+
         this.load.audio('theme_combat', 'audio/music-combat.mp3');
         this.load.audio('theme_item', 'audio/music-item.mp3');
         this.load.audio('theme_boss', 'audio/music-boss.mp3');
@@ -206,7 +210,6 @@ class GameScene extends Phaser.Scene {
         this.player.sprite = this.add.sprite(this.player.x, this.player.y, 'player_down').setOrigin(0.5);
         this.player.size = 64;
         this.player.sprite.setDisplaySize(this.player.size, this.player.size);
-
 
         this.cursors = this.input.keyboard.addKeys('W,A,S,D');
         this.shootKeys = this.input.keyboard.addKeys({
@@ -260,6 +263,14 @@ class GameScene extends Phaser.Scene {
             this.player.currentDirection = newDirection;
             this.player.sprite.setTexture('player_' + newDirection);
         }
+
+        const currentRoom = this.rooms[this.currentRoomIndex];
+        currentRoom.enemies.forEach(enemy => {
+            if (enemy.type === 'normal' && enemy.sprite) {
+                enemy.sprite.setPosition(enemy.x, enemy.y);
+                enemy.sprite.setVisible(enemy.active);
+            }
+        });
 
         this.player.hasShotThisFrame = false;
         this.player.sprite.setPosition(this.player.x, this.player.y);
@@ -536,14 +547,16 @@ class GameScene extends Phaser.Scene {
         const currentRoom = this.rooms[this.currentRoomIndex];
         currentRoom.enemies.forEach(enemy => {
             if (!enemy.active) return;
-            let color = 0xff0000;
-            switch (enemy.type) {
-                case 'bruto': color = 0xff9900; break;
-                case 'rapido': color = 0x66ccff; break;
-                case 'atirador': color = 0x000080; break;
+            if (enemy.type !== 'normal') {
+                let color = 0xff0000;
+                switch (enemy.type) {
+                    case 'bruto': color = 0xff9900; break;
+                    case 'rapido': color = 0x66ccff; break;
+                    case 'atirador': color = 0x000080; break;
+                }
+                this.graphics.fillStyle(color, 1);
+                this.graphics.fillRect(enemy.x - enemy.size / 2, enemy.y - enemy.size / 2, enemy.size, enemy.size);
             }
-            this.graphics.fillStyle(color, 1);
-            this.graphics.fillRect(enemy.x - enemy.size / 2, enemy.y - enemy.size / 2, enemy.size, enemy.size);
         });
 
         if (this.boss && this.boss.active) {
@@ -634,7 +647,14 @@ class GameScene extends Phaser.Scene {
                 case 'normal': speed = 75 + Math.floor(progress * 25); life = 3 + Math.floor(progress * 1); shoots = true; bulletSpeed = 275 + Math.floor(progress * 75); shootCooldown = Phaser.Math.Between(1000, 1500); break;
             }
 
-            const enemy = { x, y, size: 30, life, active: true, lastShot: 0, speed, shoots, type };
+            const enemy = { x, y, size: 54, life, active: true, lastShot: 0, speed, shoots, type };
+
+            if (type === 'normal') {
+                enemy.sprite = this.add.sprite(x, y, 'normal_enemy').setOrigin(0.5);
+                enemy.sprite.setDisplaySize(enemy.size, enemy.size);
+            }
+
+            
             if (shoots) { enemy.shootCooldown = shootCooldown; enemy.bulletSpeed = bulletSpeed; }
             room.enemies.push(enemy);
         }
