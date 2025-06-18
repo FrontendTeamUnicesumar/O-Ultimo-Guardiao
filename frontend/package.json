@@ -1,0 +1,19 @@
+{
+  "name": "o-ultimo-guardiao",
+  "version": "1.0.0",
+  "description": "Jogo O Último Guardião",
+  "main": "src/index.html",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "http-server src -p 3000 -o"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0",
+    "http-server": "^14.1.1"
+  },
+  "keywords": ["game", "phaser", "html5"],
+  "author": "",
+  "license": "MIT"
+} 

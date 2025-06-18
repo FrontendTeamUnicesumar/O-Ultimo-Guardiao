@@ -433,10 +433,10 @@ function update(time, delta) {
   let dx = 0;
   let dy = 0;
 
-  if (cursors.W.isDown) dy -= 1;
-  if (cursors.S.isDown) dy += 1;
-  if (cursors.A.isDown) dx -= 1;
-  if (cursors.D.isDown) dx += 1;
+  if (cursors.left.isDown || cursors.A.isDown) dx -= 1;
+  if (cursors.right.isDown || cursors.D.isDown) dx += 1;
+  if (cursors.up.isDown || cursors.W.isDown) dy -= 1;
+  if (cursors.down.isDown || cursors.S.isDown) dy += 1;
 
   if (dx !== 0 || dy !== 0) {
     const len = Math.hypot(dx, dy);
@@ -458,8 +458,22 @@ function update(time, delta) {
 
     const currentSpeed = isDashing ? player.speed * dashSpeedMultiplier : player.speed;
     
+    // Aplica o movimento
     player.x += dx * currentSpeed * (delta / 1000);
     player.y += dy * currentSpeed * (delta / 1000);
+
+    // Teleporte para o lado oposto quando sair das bordas
+    if (player.x < -player.size / 2) {
+      player.x = config.width + player.size / 2;
+    } else if (player.x > config.width + player.size / 2) {
+      player.x = -player.size / 2;
+    }
+    
+    if (player.y < -player.size / 2) {
+      player.y = config.height + player.size / 2;
+    } else if (player.y > config.height + player.size / 2) {
+      player.y = -player.size / 2;
+    }
   }
 
   if (canShoot) {
@@ -481,9 +495,6 @@ function update(time, delta) {
     setTimeout(() => canShoot = true, shootCooldown);
   }
   }
-
-  player.x = Phaser.Math.Clamp(player.x, player.size / 2, config.width - player.size / 2);
-  player.y = Phaser.Math.Clamp(player.y, player.size / 2, config.height - player.size / 2);
 
   const currentRoom = rooms[currentRoomIndex];
 

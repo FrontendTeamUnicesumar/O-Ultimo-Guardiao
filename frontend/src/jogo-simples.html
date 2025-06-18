@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>O Último Guardião - Versão Simples</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      border: 2px solid #444;
+    }
+  </style>
+</head>
+<body>
+
+<script>
+console.log('Iniciando O Último Guardião - Versão Simples...');
+
+let player;
+let cursors;
+let bullets = [];
+let enemies = [];
+let canShoot = true;
+let shootCooldown = 400;
+
+const config = {
+  type: Phaser.AUTO,
+  width: 650,
+  height: 450,
+  backgroundColor: '#111',
+  physics: {
+    default: 'arcade',
+    arcade: { debug: false }
+  },
+  scene: { 
+    preload: preload, 
+    create: create, 
+    update: update 
+  }
+};
+
+function preload() {
+  console.log('Preload iniciado');
+  // Sem carregamento de áudio por enquanto
+}
+
+function create() {
+  console.log('Create iniciado');
+  
+  this.cameras.main.setBackgroundColor('#111');
+  cursors = this.input.keyboard.addKeys('W,A,S,D');
+  
+  player = { x: 320, y: 240, size: 40, speed: 150 };
+  
+  // HUD
+  this.hudText = this.add.text(10, 10, 'Vida: 3 | Sala 1', { 
+    font: '16px Arial', 
+    fill: '#fff' 
+  }).setDepth(1);
+  
+  // Spawn de inimigos simples
+  setTimeout(() => {
+    spawnEnemies();
+  }, 1000);
+  
+  console.log('Create completo');
+}
+
+function update(time, delta) {
+  // Movimento do jogador
+  const speed = player.speed * (delta / 1000);
+  let dx = 0;
+  let dy = 0;
+
+  if (cursors.left.isDown || cursors.A.isDown) dx -= 1;
+  if (cursors.right.isDown || cursors.D.isDown) dx += 1;
+  if (cursors.up.isDown || cursors.W.isDown) dy -= 1;
+  if (cursors.down.isDown || cursors.S.isDown) dy += 1;
+
+  if (dx !== 0 || dy !== 0) {
+    const len = Math.hypot(dx, dy);
+    dx /= len;
+    dy /= len;
+    
+    player.x += dx * speed;
+    player.y += dy * speed;
+  }
+
+  // Tiro simples
+  if (canShoot && (cursors.left.isDown || cursors.right.isDown || cursors.up.isDown || cursors.down.isDown)) {
+    shoot();
+    canShoot = false;
+    setTimeout(() => canShoot = true, shootCooldown);
+  }
+
+  // Atualizar balas
+  bullets.forEach(bullet => {
+    bullet.x += bullet.vx * (delta / 1000);
+    bullet.y += bullet.vy * (delta / 1000);
+  });
+
+  bullets = bullets.filter(bullet => 
+    bullet.x > 0 && bullet.x < config.width && 
+    bullet.y > 0 && bullet.y < config.height
+  );
+
+  // Desenhar
+  draw(this);
+}
+
+function shoot() {
+  const speed = 300;
+  const bullet = {
+    x: player.x,
+    y: player.y,
+    vx: 0,
+    vy: -speed,
+    size: 8
+  };
+  bullets.push(bullet);
+}
+
+function spawnEnemies() {
+  for (let i = 0; i < 3; i++) {
+    const enemy = {
+      x: Math.random() * (config.width - 100) + 50,
+      y: Math.random() * (config.height - 100) + 50,
+      size: 30,
+      life: 2,
+      active: true
+    };
+    enemies.push(enemy);
+  }
+}
+
+function draw(scene) {
+  scene.children.list.forEach(child => {
+    if (child.type === "Graphics") child.destroy();
+  });
+
+  const g = scene.add.graphics();
+
+  // Jogador
+  g.fillStyle(0x00ff00, 1);
+  g.fillRect(
+    player.x - player.size / 2,
+    player.y - player.size / 2,
+    player.size,
+    player.size
+  );
+
+  // Inimigos
+  enemies.forEach(enemy => {
+    if (enemy.active) {
+      g.fillStyle(0xff0000, 1);
+      g.fillRect(
+        enemy.x - enemy.size / 2,
+        enemy.y - enemy.size / 2,
+        enemy.size,
+        enemy.size
+      );
+    }
+  });
+
+  // Balas
+  bullets.forEach(bullet => {
+    g.fillStyle(0xffff00, 1);
+    g.fillRect(
+      bullet.x - bullet.size / 2,
+      bullet.y - bullet.size / 2,
+      bullet.size,
+      bullet.size
+    );
+  });
+}
+
+try {
+  console.log('Criando jogo...');
+  const game = new Phaser.Game(config);
+  console.log('Jogo criado com sucesso!');
+} catch (error) {
+  console.error('Erro ao criar jogo:', error);
+  alert('Erro: ' + error.message);
+}
+</script>
+</body>
+</html> 

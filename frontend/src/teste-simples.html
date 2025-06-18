@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Teste Simples - Phaser</title>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3/dist/phaser.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+    canvas {
+      border: 2px solid #444;
+    }
+  </style>
+</head>
+<body>
+
+<script>
+console.log('Teste iniciando...');
+
+const config = {
+  type: Phaser.AUTO,
+  width: 400,
+  height: 300,
+  backgroundColor: '#2d2d2d',
+  scene: {
+    create: function() {
+      console.log('Cena criada!');
+      this.add.text(200, 150, 'PHASER FUNCIONANDO!', { 
+        fontSize: '24px', 
+        fill: '#fff' 
+      }).setOrigin(0.5);
+      
+      // Adiciona um quadrado verde
+      const graphics = this.add.graphics();
+      graphics.fillStyle(0x00ff00);
+      graphics.fillRect(100, 100, 50, 50);
+      
+      console.log('Teste completo!');
+    }
+  }
+};
+
+try {
+  console.log('Criando jogo...');
+  const game = new Phaser.Game(config);
+  console.log('Jogo criado com sucesso!');
+} catch (error) {
+  console.error('Erro ao criar jogo:', error);
+  alert('Erro: ' + error.message);
+}
+</script>
+</body>
+</html> 
