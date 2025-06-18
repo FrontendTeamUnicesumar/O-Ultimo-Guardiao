@@ -193,7 +193,7 @@ class GameScene extends Phaser.Scene {
         this.load.image('player_right', 'images/characters/principal/principal direita.png');
 
         this.load.image('normal_enemy', 'images/characters/olho/inimigo olhos.PNG');
-
+        this.load.image('atirador_enemy', 'images/characters/morte/inimigo morte.PNG');
 
         this.load.audio('theme_combat', 'audio/music-combat.mp3');
         this.load.audio('theme_item', 'audio/music-item.mp3');
@@ -266,9 +266,17 @@ class GameScene extends Phaser.Scene {
 
         const currentRoom = this.rooms[this.currentRoomIndex];
         currentRoom.enemies.forEach(enemy => {
-            if (enemy.type === 'normal' && enemy.sprite) {
+            if ((enemy.type === 'normal' || enemy.type === 'atirador') && enemy.sprite) {
                 enemy.sprite.setPosition(enemy.x, enemy.y);
                 enemy.sprite.setVisible(enemy.active);
+            }
+
+            if (enemy.life <= 0) {
+                enemy.active = false;
+                if (enemy.sprite) {
+                    enemy.sprite.destroy();
+                    enemy.sprite = null;
+                }
             }
         });
 
@@ -547,12 +555,11 @@ class GameScene extends Phaser.Scene {
         const currentRoom = this.rooms[this.currentRoomIndex];
         currentRoom.enemies.forEach(enemy => {
             if (!enemy.active) return;
-            if (enemy.type !== 'normal') {
-                let color = 0xff0000;
+            if (enemy.type !== 'normal' && enemy.type !== 'atirador') {
+                let color;
                 switch (enemy.type) {
                     case 'bruto': color = 0xff9900; break;
                     case 'rapido': color = 0x66ccff; break;
-                    case 'atirador': color = 0x000080; break;
                 }
                 this.graphics.fillStyle(color, 1);
                 this.graphics.fillRect(enemy.x - enemy.size / 2, enemy.y - enemy.size / 2, enemy.size, enemy.size);
@@ -654,7 +661,12 @@ class GameScene extends Phaser.Scene {
                 enemy.sprite.setDisplaySize(enemy.size, enemy.size);
             }
 
-            
+            if (type === 'atirador') {
+                enemy.sprite = this.add.sprite(x, y, 'atirador_enemy').setOrigin(0.5);
+                enemy.sprite.setDisplaySize(enemy.size, enemy.size);
+            }
+
+
             if (shoots) { enemy.shootCooldown = shootCooldown; enemy.bulletSpeed = bulletSpeed; }
             room.enemies.push(enemy);
         }
