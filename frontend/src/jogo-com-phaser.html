@@ -38,7 +38,7 @@ class StartScene extends Phaser.Scene {
             .setDisplaySize(this.cameras.main.width, this.cameras.main.height)
             .setTint(0xAAAAAA); 
 
-        this.introMusic = this.sound.play('theme_intro', { loop: true, volume: 0.7 });
+        this.sound.play('theme_intro', { volume: 0.7 });
       
         this.add.text(this.cameras.main.width / 2, 80, 'O Último Guardião', {
             fontFamily: '"Cinzel Decorative", serif', 
@@ -88,8 +88,8 @@ class StartScene extends Phaser.Scene {
     
         startButton.on('pointerdown', () => {
             this.game.canvas.style.cursor = 'default'; 
-            this.introMusic.stop(); 
-            this.scene.start('game');
+            this.sound.stopByKey('theme_intro');
+            this.scene.start('game'); 
         });
     }
 }
@@ -972,6 +972,10 @@ const config = {
     physics: {
         default: 'arcade',
         arcade: { debug: false }
+    },
+    audio: {
+        disableWebAudio: false, 
+        noAudio: false, 
     },
     scene: [StartScene, GameScene, GameOverScene, VictoryScene]
 };
