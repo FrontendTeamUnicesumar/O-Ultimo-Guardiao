@@ -239,6 +239,7 @@ function preload() {
   this.load.audio('sfx_hurt', 'audio/sfx-hit.wav');
   this.load.audio('sfx_gameover', 'audio/sfx-game-over.wav');
   this.load.audio('sfx_dash', 'audio/dash-sound.wav');
+  this.load.audio('sfx_shoot', 'audio/player-shoot.wav');
 }
 
 function create() {
@@ -466,19 +467,19 @@ function update(time, delta) {
 
   if (canShoot) {
   if (shootKeys.up.isDown) {
-    shoot('up');
+    shoot('up', this);
     canShoot = false;
     setTimeout(() => canShoot = true, shootCooldown);
   } else if (shootKeys.down.isDown) {
-    shoot('down');
+    shoot('down', this);
     canShoot = false;
     setTimeout(() => canShoot = true, shootCooldown);
   } else if (shootKeys.left.isDown) {
-    shoot('left');
+    shoot('left', this);
     canShoot = false;
     setTimeout(() => canShoot = true, shootCooldown);
   } else if (shootKeys.right.isDown) {
-    shoot('right');
+    shoot('right', this);
     canShoot = false;
     setTimeout(() => canShoot = true, shootCooldown);
   }
@@ -766,6 +767,9 @@ function draw(scene) {
 }
 
 function shoot(direction, scene) {
+
+  scene.sound.play('sfx_shoot', { volume: 0.3 });
+
   const baseSpeed = 300;
   let baseAngle = 0;
 
