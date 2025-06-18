@@ -21,1022 +21,963 @@
 <body>
 
 <script>
-const config = {
-  type: Phaser.AUTO,
-  width: 650,
-  height: 450,
-  physics: {
-    default: 'arcade',
-    arcade: { debug: false }
-  },
-  scene: { preload, create, update }
-};
+class StartScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'start' });
+    }
 
-let boss = null;
-let player;
-let cursors;
-let musicTracks = {};
-let currentMusic = null;
-let bullets = [];
-let enemyBullets = [];  // ➕ balas inimigas
-let canShoot = true;
-let shootCooldown = 400;
-let mousePointer;
-let playerLife = 5;
-let hudText;
-let currentRoomIndex = 0;
-let rooms = [];
-let door = { x: 0, y: 0, width: 40, height: 40, open: false, direction: null };
-let enemyShootCooldown = 1000; // ➕ intervalo de tiro inimigo
-let miniMap = [];  // Armazena posições das salas
-let miniMapOffset = { x: 3, y: 3 }; // Posição inicial no meio de uma grade 7x7
-let visitedRooms = new Set();
-let isInvulnerable = false;
-let invulnDuration = 2000; // milissegundos
-let lastDamageTime = 0;
-let blinkInterval;
-let bulletSpeed;
-let dashKey;
-let isDashing = false;
-let dashCooldown = 2000; // 1 segundo
-let dashDuration = 150;  // duração do dash em ms
-let lastDashTime = -dashCooldown;
-let dashSpeedMultiplier = 4;
-let damageTakenMultiplier = 1;
-let shootKeys;
-let specialItems = [
-  {
-    name: "Pergaminho da Velocidade",
-    applyEffect: function() {
-      player.speed *= 1.5;
-      dashSpeedMultiplier *= 1.2;
-      dashCooldown /= 1.25; // reduz o cooldown do dash
-      damageTakenMultiplier *= 2;
-      playerLife += 1;
-    },
-    description: "Velocidade absurda... mas sofra o dobro de dano."
-  },
-  {
-    name: "Pergaminho da Força",
-    applyEffect: function() {
-      player.damageMultiplier = (player.damageMultiplier || 1) * 2.5; // dobra o dano
-      playerLife += 4; // aumenta a vida do jogador
-      dashCooldown *= 1.2; // aumenta o cooldown do dash
-      dashSpeedMultiplier /= 1.1; // reduz a velocidade do dash 
-      player.speed /= 1.1; // reduz a velocidade do jogador                            
-    },
-    description: "Dano e vida aumetados... mas seu personagem e dash agora são mais lentos."
-  }, 
-  {
-    name: "Pergaminho do Poder",
-    applyEffect: function() {
-      player.bulletSizeMultiplier = (player.bulletSizeMultiplier || 1) * 2; // Aumenta o tamanho do tiro em 50%
-      player.multiShotLevel = (player.multiShotLevel || 0) + 1; 
-      player.damageMultiplier = (player.damageMultiplier || 1) * 0.75; // Reduz o dano para 65%
-      playerLife += 1;
-    },
-    description: "Dobro de tiros, maiores e mais rápidos... mas seu dano é reduzido."
+    preload() {
+        this.load.image('background_start', 'images/start-game-image.png');
+    }
+
+    create() {
+      
+        this.add.image(this.cameras.main.width / 2, this.cameras.main.height / 2, 'background_start')
+            .setDisplaySize(this.cameras.main.width, this.cameras.main.height)
+            .setTint(0xAAAAAA); 
+
+      
+        this.add.text(this.cameras.main.width / 2, 80, 'O Último Guardião', {
+            fontFamily: '"Cinzel Decorative", serif', 
+            fontSize: '52px',
+            fill: '#E0E0E0', 
+            stroke: '#000000',
+            strokeThickness: 5,
+            shadow: { offsetX: 4, offsetY: 4, color: '#000', blur: 6, stroke: true, fill: true }
+        }).setOrigin(0.5);
+
+     
+        const gameStory = "O Rei, consumido pela ganância e pelo medo do poder ancestral, decretou a morte daquele que protege o equilíbrio do mundo. Você, o mais leal cavaleiro do reino, recebeu a ordem final: adentrar as ruínas proibidas e eliminar 'O Último Guardião'. Mas ao cruzar os portões, uma dúvida assola sua alma: você está cumprindo seu dever ou selando o destino de todos?";
+
+  
+        const textBackground = this.add.graphics({ fillStyle: { color: 0x000000, alpha: 0.6 } });
+        const storyText = this.add.text(this.cameras.main.width / 2, 220, gameStory, {
+            fontFamily: 'Georgia, serif',
+            fontSize: '17px',
+            fill: '#DDCBAA', 
+            align: 'center',
+            wordWrap: { width: this.cameras.main.width - 100 },
+            lineSpacing: 7
+        }).setOrigin(0.5);
+        
+  
+        const bounds = storyText.getBounds();
+        textBackground.fillRoundedRect(bounds.x - 20, bounds.y - 15, bounds.width + 40, bounds.height + 30, 10);
+        
+        const startButton = this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 70, 'INICIAR JORNADA', {
+            fontFamily: '"Cinzel", serif',
+            fontSize: '28px',
+            fill: '#FFFFFF',
+            stroke: '#000000',
+            strokeThickness: 4,
+        }).setOrigin(0.5).setInteractive(); 
+
+        startButton.on('pointerover', () => {
+            startButton.setStyle({ fill: '#FFD700' }); 
+            this.game.canvas.style.cursor = 'pointer'; 
+        });
+
+        // Efeito ao tirar o mouse do botão
+        startButton.on('pointerout', () => {
+            startButton.setStyle({ fill: '#FFFFFF' });
+            this.game.canvas.style.cursor = 'default';
+        });
+    
+        startButton.on('pointerdown', () => {
+            this.game.canvas.style.cursor = 'default'; 
+            this.scene.start('game');
+        });
+    }
+}
+
+
+class GameOverScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'gameOver' });
+    }
+
+    preload() {
+        this.load.image('background_gameover', 'images/game-over-image.png');
+    }
+
+    create() {
+        this.add.image(this.cameras.main.width / 2, this.cameras.main.height / 2, 'background_gameover')
+            .setDisplaySize(this.cameras.main.width, this.cameras.main.height);
+        
+
+        this.add.text(this.cameras.main.width / 2, 80, 'Fim de Jogo', {
+            fontFamily: '"Times New Roman", serif', 
+            fontSize: '60px',
+            fill: '#ff4444', 
+            stroke: '#000000',
+            strokeThickness: 4,
+            shadow: { offsetX: 3, offsetY: 3, color: '#000', blur: 5, stroke: true, fill: true }
+        }).setOrigin(0.5);
+
+        const gameOverStory = "O guerreiro caiu. As sombras, antes contidas pela sua coragem, agora se espalham sem controle. A esperança se extingue, e o mundo mergulha em uma era de escuridão eterna. Ou será que não? Talvez morrer aqui tenha sido a coisa certa a se fazer";
+
+        this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 150, gameOverStory, {
+            fontFamily: 'Georgia, serif',
+            fontSize: '18px',
+            fill: '#cccccc',
+            align: 'center',
+            wordWrap: { width: this.cameras.main.width - 60 }, 
+            lineSpacing: 8
+        }).setOrigin(0.5);
+    }
+}
+
+
+class VictoryScene extends Phaser.Scene {
+    constructor() {
+        super({ key: 'victory' });
+    }
+
+
+    preload() {
+
+        this.load.image('background_victory', 'images/victory-image.png');
+    }
+
+    create() {
+
+        this.add.image(this.cameras.main.width / 2, this.cameras.main.height / 2, 'background_victory')
+            .setDisplaySize(this.cameras.main.width, this.cameras.main.height);
+
+ 
+        this.add.text(this.cameras.main.width / 2, 80, 'Vitória!', {
+            fontFamily: '"Times New Roman", serif',
+            fontSize: '60px',
+            fill: '#ffffaa', // Um dourado claro
+            stroke: '#332200',
+            strokeThickness: 4,
+            shadow: { offsetX: 3, offsetY: 3, color: '#000', blur: 5, stroke: true, fill: true }
+        }).setOrigin(0.5);
+
+        const victoryStory = "Com a queda do 'Último Guardião', a luz retorna ao mundo. A sua bravura será cantada por gerações, e a paz que você conquistou florescerá por milênios. Descanse, nobre guerreiro. Você mereceu. Se não fosse pelo fato de suas ações terem condenado o mundo uma eterna era de tirania, é claro.";
+        
+        this.add.text(this.cameras.main.width / 2, this.cameras.main.height - 150, victoryStory, {
+            fontFamily: 'Georgia, serif',
+            fontSize: '18px',
+            fill: '#fffff',
+            align: 'center',
+            wordWrap: { width: this.cameras.main.width - 60 },
+            lineSpacing: 8
+        }).setOrigin(0.5);
+    }
+}
+
+// ===================================================================
+// CENA PRINCIPAL DO JOGO (TOTALMENTE ENCAPSULADA)
+// ===================================================================
+class GameScene extends Phaser.Scene{
+    constructor() {
+        super({ key: 'game' });
+    }
+
+    // O método init é chamado toda vez que a cena inicia. Perfeito para resetar o estado.
+    init() {
+        this.boss = null;
+        this.player = { x: 320, y: 240, size: 40, speed: 150, visible: true };
+        this.bullets = [];
+        this.enemyBullets = [];
+        this.canShoot = true;
+        this.shootCooldown = 400;
+        this.playerLife = 5;
+        this.currentRoomIndex = 0;
+        this.rooms = [];
+        this.door = { x: 0, y: 0, width: 40, height: 40, open: false, direction: null };
+        this.visitedRooms = new Set();
+        this.isInvulnerable = false;
+        this.invulnDuration = 2000;
+        this.isDashing = false;
+        this.dashCooldown = 2000;
+        this.dashDuration = 150;
+        this.lastDashTime = -this.dashCooldown;
+        this.dashSpeedMultiplier = 4;
+        this.damageTakenMultiplier = 1;
+        this.itemDescription = '';
+        this.itemPickupAvailable = false;
+        if (this.currentMusic) {
+            this.currentMusic.stop();
+        }
+        this.currentMusic = null;
+    }
+
+    preload() {
+        this.load.audio('theme_combat', 'audio/music-combat.mp3');
+        this.load.audio('theme_item', 'audio/music-item.mp3');
+        this.load.audio('theme_boss', 'audio/music-boss.mp3');
+        this.load.audio('sfx_hurt', 'audio/sfx-hit.wav');
+        this.load.audio('sfx_gameover', 'audio/sfx-game-over.wav');
+        this.load.audio('sfx_dash', 'audio/dash-sound.wav');
+        this.load.audio('sfx_shoot', 'audio/player-shoot.wav');
+    }
+
+    create() {
+        this.cameras.main.setBackgroundColor('#111');
+        
+        // Controles
+        this.cursors = this.input.keyboard.addKeys('W,A,S,D');
+        this.shootKeys = this.input.keyboard.addKeys({
+            up: Phaser.Input.Keyboard.KeyCodes.UP,
+            down: Phaser.Input.Keyboard.KeyCodes.DOWN,
+            left: Phaser.Input.Keyboard.KeyCodes.LEFT,
+            right: Phaser.Input.Keyboard.KeyCodes.RIGHT
+        });
+        this.dashKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+        this.itemKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
+
+        // HUD e Textos
+        this.hudText = this.add.text(10, 10, '', { font: '16px Arial', fill: '#fff' }).setDepth(1);
+        const descriptionBg = this.add.graphics().setDepth(0.9);
+        this.descriptionText = this.add.text(20, 320, '', {
+            fontFamily: 'Verdana', fontSize: '12px', color: '#ffffaa', align: 'left',
+            wordWrap: { width: config.width - 40 }, lineSpacing: 6, stroke: '#000000', strokeThickness: 3,
+            shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 2, stroke: true, fill: true }
+        }).setDepth(1);
+
+        this.events.on('postupdate', () => {
+            if (this.descriptionText.text.length > 0) {
+                const textHeight = this.descriptionText.height + 16;
+                descriptionBg.clear();
+                descriptionBg.fillStyle(0x000000, 0.7);
+                descriptionBg.fillRoundedRect(10, 310, config.width - 20, textHeight, 10);
+                this.descriptionText.setY(320 + (textHeight - this.descriptionText.height - 16) / 2);
+            } else {
+                descriptionBg.clear();
+            }
+        });
+        
+        // Inicialização do Jogo
+        this.createRooms();
+        this.setDoorPosition();
+        this.playMusicForRoom('combat');
+    }
+
+    update(time, delta) {
+        if (!this.player) return;
+
+        this.handlePlayerMovement(time, delta);
+        this.handleShooting();
+        this.handleEnemyAI(time, delta);
+        this.handleItemPickup();
+        this.updateBullets(delta);
+        this.checkCollisions();
+        this.checkRoomClearCondition();
+        this.checkDoorTransition();
+        
+        this.separateEnemies(this.rooms[this.currentRoomIndex].enemies);
+        this.hudText.setText(`Vida: ${Math.ceil(this.playerLife)} | ${this.rooms[this.currentRoomIndex].name}`);
+        this.descriptionText.setText(this.itemDescription);
+        
+        this.drawGame();
+    }
+
+    // --- MÉTODOS DE LÓGICA DO JOGO (ANTIGAS FUNÇÕES GLOBAIS) ---
+
+        handlePlayerMovement(time, delta) {
+        let dx = 0;
+        let dy = 0;
+
+        if (this.cursors.W.isDown) dy -= 1;
+        if (this.cursors.S.isDown) dy += 1;
+        if (this.cursors.A.isDown) dx -= 1;
+        if (this.cursors.D.isDown) dx += 1; // <-- LINHA CORRIGIDA
+
+        if (dx !== 0 || dy !== 0) {
+            const len = Math.hypot(dx, dy); // Esta linha já garante a velocidade constante na diagonal
+            dx /= len;
+            dy /= len;
+
+            if (Phaser.Input.Keyboard.JustDown(this.dashKey) && time - this.lastDashTime >= this.dashCooldown) {
+                this.sound.play('sfx_dash', { volume: 0.5 });
+                this.isDashing = true;
+                this.lastDashTime = time;
+                setTimeout(() => { this.isDashing = false; }, this.dashDuration);
+                this.isInvulnerable = true;
+                setTimeout(() => { this.isInvulnerable = false; }, this.dashDuration);
+            }
+
+            const currentSpeed = this.isDashing ? this.player.speed * this.dashSpeedMultiplier : this.player.speed;
+            this.player.x += dx * currentSpeed * (delta / 1000);
+            this.player.y += dy * currentSpeed * (delta / 1000);
+        }
+        
+        this.player.x = Phaser.Math.Clamp(this.player.x, this.player.size / 2, config.width - this.player.size / 2);
+        this.player.y = Phaser.Math.Clamp(this.player.y, this.player.size / 2, config.height - this.player.size / 2);
+    }
+
+    handleShooting() {
+        if (this.canShoot) {
+            let direction = null;
+            if (this.shootKeys.up.isDown) direction = 'up';
+            else if (this.shootKeys.down.isDown) direction = 'down';
+            else if (this.shootKeys.left.isDown) direction = 'left';
+            else if (this.shootKeys.right.isDown) direction = 'right';
+            
+            if (direction) {
+                this.shoot(direction);
+                this.canShoot = false;
+                setTimeout(() => { this.canShoot = true; }, this.shootCooldown);
+            }
+        }
+    }
+    
+    handleEnemyAI(time, delta) {
+        const currentRoom = this.rooms[this.currentRoomIndex];
+        currentRoom.enemies.forEach(enemy => {
+            if (!enemy.active) return;
+            const dx = this.player.x - enemy.x;
+            const dy = this.player.y - enemy.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 0) {
+                enemy.x += (dx / dist) * enemy.speed * (delta / 1000);
+                enemy.y += (dy / dist) * enemy.speed * (delta / 1000);
+            }
+            if (enemy.shoots && time - enemy.lastShot > enemy.shootCooldown) {
+                this.enemyShoot(enemy);
+                enemy.lastShot = time;
+            }
+        });
+
+        if (this.boss && this.boss.active) {
+        if (this.boss.isDashing) {
+            const dx = this.boss.dashTarget.x - this.boss.x;
+            const dy = this.boss.dashTarget.y - this.boss.y;
+            const dist = Math.hypot(dx, dy);
+            const dashSpeed = 450; // Investida mais rápida
+
+            if (dist > 20) {
+                this.boss.x += (dx / dist) * dashSpeed * (delta / 1000);
+                this.boss.y += (dy / dist) * dashSpeed * (delta / 1000);
+            } else {
+                this.boss.isDashing = false;
+                // --- NOVO: Ataque "escopeta" ao final da investida ---
+                const shotgunBullets = 7;
+                const spreadAngle = Math.PI / 4; // Abre um leque de 45 graus
+                const baseAngle = Math.atan2(this.player.y - this.boss.y, this.player.x - this.boss.x);
+                
+                for (let i = 0; i < shotgunBullets; i++) {
+                    const angle = baseAngle - (spreadAngle / 2) + (i * (spreadAngle / (shotgunBullets - 1)));
+                    this.enemyBullets.push({
+                        x: this.boss.x, y: this.boss.y,
+                        vx: Math.cos(angle) * 250,
+                        vy: Math.sin(angle) * 250,
+                        fromEnemy: true
+                    });
+                }
+            }
+        } else {
+            // Movimento normal de seguir
+            const dx = this.player.x - this.boss.x;
+            const dy = this.player.y - this.boss.y;
+            const dist = Math.hypot(dx, dy);
+            if (dist > 0) {
+                this.boss.x += (dx / dist) * this.boss.speed * (delta / 1000);
+                this.boss.y += (dy / dist) * this.boss.speed * (delta / 1000);
+            }
+        }
+          this.bossAttack(time);
+      }
+
+      }
+
+    handleItemPickup() {
+        const currentRoom = this.rooms[this.currentRoomIndex];
+        if (currentRoom.type === 'item' && currentRoom.item) {
+            const dist = Phaser.Math.Distance.Between(this.player.x, this.player.y, config.width / 2, config.height / 2);
+            if (dist < 50) {
+                this.itemDescription = `${currentRoom.item.name}: ${currentRoom.item.description}\nPressione [ESPAÇO] para pegar.`;
+                this.itemPickupAvailable = true;
+                if (Phaser.Input.Keyboard.JustDown(this.itemKey)) {
+                    currentRoom.item.applyEffect(this); // Passa a cena para o efeito
+                    currentRoom.item = null;
+                    this.itemDescription = '';
+                    this.itemPickupAvailable = false;
+                }
+            } else {
+                this.itemDescription = '';
+                this.itemPickupAvailable = false;
+            }
+        }
+    }
+
+    updateBullets(delta) {
+        this.bullets.forEach(b => { b.x += b.vx * (delta / 1000); b.y += b.vy * (delta / 1000); });
+        this.enemyBullets.forEach(b => { b.x += b.vx * (delta / 1000); b.y += b.vy * (delta / 1000); });
+    }
+
+    checkCollisions() {
+        const currentRoom = this.rooms[this.currentRoomIndex];
+        
+        // Balas do jogador vs Inimigos
+        this.bullets = this.bullets.filter(bullet => {
+            let hit = false;
+            currentRoom.enemies.forEach(enemy => {
+                if (enemy.active && Phaser.Math.Distance.Between(bullet.x, bullet.y, enemy.x, enemy.y) < (enemy.size / 2)) {
+                    enemy.life -= (this.player.damageMultiplier || 1);
+                    if (enemy.life <= 0) enemy.active = false;
+                    hit = true;
+                }
+            });
+            if (this.boss && this.boss.active && !this.boss.isDashing && Phaser.Math.Distance.Between(bullet.x, bullet.y, this.boss.x, this.boss.y) < (this.boss.size / 2)) {
+                this.boss.life -= (this.player.damageMultiplier || 1);
+                if (this.boss.life <= 0) this.boss.active = false;
+                hit = true;
+            }
+            return !hit && bullet.x > 0 && bullet.x < config.width && bullet.y > 0 && bullet.y < config.height;
+        });
+
+        // Balas do inimigo vs Jogador
+        this.enemyBullets = this.enemyBullets.filter(bullet => {
+            if (!this.isInvulnerable && Phaser.Math.Distance.Between(bullet.x, bullet.y, this.player.x, this.player.y) < this.player.size / 2) {
+                this.takeDamage();
+                return false;
+            }
+            return bullet.x > 0 && bullet.x < config.width && bullet.y > 0 && bullet.y < config.height;
+        });
+
+        // Inimigos vs Jogador
+        if (!this.isInvulnerable) {
+            currentRoom.enemies.forEach(enemy => {
+                if (enemy.active && Phaser.Math.Distance.Between(this.player.x, this.player.y, enemy.x, enemy.y) < (this.player.size / 2)) {
+                    this.takeDamage();
+                }
+            });
+            if (this.boss && this.boss.active && Phaser.Math.Distance.Between(this.player.x, this.player.y, this.boss.x, this.boss.y) < (this.player.size / 2 + this.boss.size / 2)) {
+                this.takeDamage();
+            }
+        }
+    }
+
+    checkRoomClearCondition() {
+        const currentRoom = this.rooms[this.currentRoomIndex];
+        
+        // Se a sala já está liberada, não fazemos nada.
+        if (currentRoom.cleared) return;
+        
+        let shouldClear = false;
+
+        if (currentRoom.type === 'item') {
+            // Uma sala de item é considerada "liberada" por padrão.
+            shouldClear = true;
+        } else if (currentRoom.type === 'combat') {
+            // Uma sala de combate é liberada quando todos os inimigos estão inativos.
+            if (currentRoom.spawned && currentRoom.enemies.every(e => !e.active)) {
+                shouldClear = true;
+            }
+        } else if (currentRoom.type === 'boss') {
+            // A sala do chefe é liberada quando o chefe está inativo.
+            if (this.boss && !this.boss.active) {
+                shouldClear = true;
+            }
+        }
+
+        // Se a condição para liberar a sala foi atendida...
+        if (shouldClear) {
+            currentRoom.cleared = true;
+            this.door.open = true;
+        }
+    }
+    
+    checkDoorTransition() {
+      if (this.door.open && this.checkPlayerAtDoor()) {
+        const currentRoom = this.rooms[this.currentRoomIndex];
+        if (currentRoom.next) {
+            this.currentRoomIndex++;
+            this.visitedRooms.add(this.currentRoomIndex);
+            this.bullets = [];
+            this.enemyBullets = [];
+            this.movePlayerToNewPosition();
+            this.setDoorPosition(); // A porta já será aberta aqui se for uma sala de item
+            
+            const nextRoom = this.rooms[this.currentRoomIndex];
+            this.playMusicForRoom(nextRoom.type);
+            
+            // >>> CORREÇÃO PRINCIPAL: Lógica de spawn explícita <<<
+            if (!nextRoom.spawned) {
+                setTimeout(() => {
+                    // Chama a função de spawn apropriada APENAS se necessário
+                    if (nextRoom.type === 'boss') {
+                        this.spawnBoss();
+                    } else if (nextRoom.type === 'combat') {
+                        this.spawnEnemies();
+                    }
+                    // Salas de item não fazem nada aqui, como deveriam.
+
+                    nextRoom.spawned = true;
+                }, 1000);
+            }
+        } else {
+            // Fim do jogo (vitória)
+            this.sound.stopAll();
+            this.scene.start('victory');
+          }
+      }
+    }
+    
+    drawGame() {
+        if (!this.graphics) {
+            this.graphics = this.add.graphics();
+        }
+        this.graphics.clear();
+        
+        // Porta
+        this.graphics.fillStyle(this.door.open ? 0x00ff00 : 0xff0000, 1);
+        this.graphics.fillRect(this.door.x, this.door.y, this.door.width, this.door.height);
+        
+        // Jogador
+        if (this.player.visible) {
+            this.graphics.fillStyle(0x00ff00, 1);
+            this.graphics.fillRect(this.player.x - this.player.size / 2, this.player.y - this.player.size / 2, this.player.size, this.player.size);
+        }
+        
+        // Inimigos e Boss
+        const currentRoom = this.rooms[this.currentRoomIndex];
+        currentRoom.enemies.forEach(enemy => {
+            if (!enemy.active) return;
+            let color = 0xff0000;
+            switch (enemy.type) {
+                case 'bruto': color = 0xff9900; break;
+                case 'rapido': color = 0x66ccff; break;
+                case 'atirador': color = 0x000080; break;
+            }
+            this.graphics.fillStyle(color, 1);
+            this.graphics.fillRect(enemy.x - enemy.size / 2, enemy.y - enemy.size / 2, enemy.size, enemy.size);
+        });
+        
+        if (this.boss && this.boss.active) {
+            this.graphics.fillStyle(0x8B008B, 1);
+            this.graphics.fillRect(this.boss.x - this.boss.size / 2, this.boss.y - this.boss.size / 2, this.boss.size, this.boss.size);
+            const healthBarWidth = 150, healthBarHeight = 15, healthBarX = config.width / 2 - healthBarWidth / 2, healthBarY = 20;
+            this.graphics.fillStyle(0x333333, 1);
+            this.graphics.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
+            const currentHealthWidth = (this.boss.life / this.boss.maxLife) * healthBarWidth;
+            this.graphics.fillStyle(0xff0000, 1);
+            this.graphics.fillRect(healthBarX, healthBarY, currentHealthWidth, healthBarHeight);
+        }
+
+        // Balas
+        this.graphics.fillStyle(0xffff00, 1);
+        this.bullets.forEach(b => this.graphics.fillRect(b.x - b.size / 2, b.y - b.size / 2, b.size, b.size));
+        this.graphics.fillStyle(0xff00ff, 1);
+        this.enemyBullets.forEach(b => this.graphics.fillRect(b.x - 4, b.y - 4, 8, 8));
+
+        // Itens
+        if (currentRoom.type === 'item' && currentRoom.item) {
+            this.graphics.fillStyle(0xffff00, 1);
+            this.graphics.fillRect(config.width / 2 - 15, config.height / 2 - 15, 30, 30);
+        }
+    }
+
+    // --- MÉTODOS DE UTILIDADE (ANTIGAS FUNÇÕES GLOBAIS) ---
+    
+    createRooms() {
+        const roomSequence = ['combat', 'combat', 'combat', 'item', 'combat', 'combat', 'combat', 'item', 'combat', 'combat', 'combat', 'item', 'boss'];
+        const opposites = { north: 'south', south: 'north', east: 'west', west: 'east' };
+        const dirOffsets = { north: { x: 0, y: -1 }, south: { x: 0, y: 1 }, east: { x: 1, y: 0 }, west: { x: -1, y: 0 } };
+        let currentPos = { x: 0, y: 0 }, usedPositions = new Set(["0,0"]), previousDirection = null;
+
+        for (let i = 0; i < roomSequence.length; i++) {
+            const type = roomSequence[i];
+            const room = new Room(`Sala ${i + 1} - ${type}`, type);
+            this.rooms.push(room);
+
+            if (type === 'item') room.item = Phaser.Utils.Array.GetRandom(specialItems);
+            
+            let possibleDirs = ['north', 'south', 'east', 'west'].filter(dir => dir !== opposites[previousDirection]);
+            let chosenDir = Phaser.Utils.Array.GetRandom(possibleDirs);
+            room.exitDirection = chosenDir;
+            previousDirection = chosenDir;
+        }
+
+        for (let i = 0; i < this.rooms.length - 1; i++) {
+            this.rooms[i].next = this.rooms[i + 1];
+        }
+
+        setTimeout(() => {
+            const firstRoom = this.rooms[0];
+            if (firstRoom.type === 'combat') this.spawnEnemies();
+            firstRoom.spawned = true;
+        }, 750);
+    }
+    
+  spawnEnemies() {
+        const room = this.rooms[this.currentRoomIndex];
+        if (room.spawned) return;
+        if (room.type !== 'combat') {
+            return;
+        }
+
+        const roomIndex = this.currentRoomIndex;
+        let totalEnemiesToSpawn = 2 + Math.floor(roomIndex * 0.5);
+        for (let i = 0; i < totalEnemiesToSpawn; i++) {
+            let x, y;
+            do {
+                x = Phaser.Math.Between(50, config.width - 50);
+                y = Phaser.Math.Between(50, config.height - 50);
+            } while (Phaser.Math.Distance.Between(x, y, this.player.x, this.player.y) < 150);
+            
+            const progress = roomIndex / this.rooms.length;
+            let type;
+            const rand = Phaser.Math.Between(1, 100);
+            if (rand < 25) type = 'rapido'; 
+            else if (rand < 50) type = 'atirador';
+            else if (rand < 75) type = 'bruto'; 
+            else type = 'normal';
+
+            let shoots = false, speed = 50, life = 2, shootCooldown, bulletSpeed;
+            switch (type) {
+                case 'rapido': speed = 150 + Math.floor(progress * 50); life = 2 + Math.floor(progress * 1); shoots = false; break;
+                case 'atirador': speed = 50 + Math.floor(progress * 15); life = 3 + Math.floor(progress * 2); shoots = true; bulletSpeed = 150 + Math.floor(progress * 50); shootCooldown = Phaser.Math.Between(6000, 7500); break;
+                case 'bruto': speed = 125 + Math.floor(progress * 50); life = 5 + Math.floor(progress * 3); shoots = false; break;
+                case 'normal': speed = 75 + Math.floor(progress * 25); life = 3 + Math.floor(progress * 1); shoots = true; bulletSpeed = 275 + Math.floor(progress * 75); shootCooldown = Phaser.Math.Between(1000, 1500); break;
+            }
+            
+            const enemy = { x, y, size: 30, life, active: true, lastShot: 0, speed, shoots, type };
+            if (shoots) { enemy.shootCooldown = shootCooldown; enemy.bulletSpeed = bulletSpeed; }
+            room.enemies.push(enemy);
+        }
+    }
+    
+    setDoorPosition() {
+        const currentRoom = this.rooms[this.currentRoomIndex];
+        if (!currentRoom) return;
+        const dir = currentRoom.exitDirection;
+        this.door.direction = dir;
+
+        if (currentRoom.type === 'item') {
+            this.door.open = true;
+        } else {
+            this.door.open = currentRoom.cleared;
+        }
+
+        switch (dir) {
+            case 'north': this.door.x = config.width / 2 - this.door.width / 2; this.door.y = 0; break;
+            case 'south': this.door.x = config.width / 2 - this.door.width / 2; this.door.y = config.height - this.door.height; break;
+            case 'east': this.door.x = config.width - this.door.width; this.door.y = config.height / 2 - this.door.height / 2; break;
+            case 'west': this.door.x = 0; this.door.y = config.height / 2 - this.door.height / 2; break;
+        }
+    }
+    
+    shoot(direction) {
+        this.sound.play('sfx_shoot', { volume: 0.05 });
+        const baseSpeed = 300; let baseAngle = 0;
+        if (direction === 'up') baseAngle = -Math.PI / 2;
+        else if (direction === 'down') baseAngle = Math.PI / 2;
+        else if (direction === 'left') baseAngle = Math.PI;
+        
+        const bulletSize = 8 * (this.player.bulletSizeMultiplier || 1);
+        const numberOfBullets = Math.pow(2, (this.player.multiShotLevel || 0));
+        const spreadAngle = 0.2;
+        
+        for (let i = 0; i < numberOfBullets; i++) {
+            const angleOffset = (i - (numberOfBullets - 1) / 2) * spreadAngle;
+            const angle = baseAngle + angleOffset;
+            this.bullets.push({ x: this.player.x, y: this.player.y, vx: Math.cos(angle) * baseSpeed, vy: Math.sin(angle) * baseSpeed, size: bulletSize });
+        }
+    }
+
+  enemyShoot(enemy) {
+        if (!enemy.active || !enemy.shoots) return;
+
+        // Verifica se o inimigo é do tipo 'atirador' para o ataque especial
+        if (enemy.type === 'atirador') {
+            // Lógica do tiro em arco
+            const numBullets = 9;
+            const spread = Math.PI / 2; // Arco de 90 graus
+            const baseAngle = Math.atan2(this.player.y - enemy.y, this.player.x - enemy.x);
+            const startAngle = baseAngle - spread / 2;
+            const delayPerShot = 50;
+
+            for (let i = 0; i < numBullets; i++) {
+                setTimeout(() => {
+                    // Checa novamente se o inimigo ainda está vivo e ativo
+                    if (!enemy.active) return;
+
+                    const angle = startAngle + (spread / (numBullets - 1)) * i;
+                    const vx = Math.cos(angle) * enemy.bulletSpeed;
+                    const vy = Math.sin(angle) * enemy.bulletSpeed;
+
+                    this.enemyBullets.push({
+                        x: enemy.x,
+                        y: enemy.y,
+                        vx,
+                        vy,
+                        fromEnemy: true
+                    });
+                }, i * delayPerShot);
+            }
+        } else {
+            // Lógica do tiro único para outros tipos de inimigos (ex: 'normal')
+            const dx = this.player.x - enemy.x;
+            const dy = this.player.y - enemy.y;
+            const len = Math.hypot(dx, dy);
+            this.enemyBullets.push({
+                x: enemy.x,
+                y: enemy.y,
+                vx: (dx / len) * enemy.bulletSpeed,
+                vy: (dy / len) * enemy.bulletSpeed,
+                fromEnemy: true
+            });
+        }
+    }
+    
+    checkPlayerAtDoor() {
+        return (this.player.x + this.player.size / 2 >= this.door.x && this.player.x - this.player.size / 2 <= this.door.x + this.door.width &&
+                this.player.y + this.player.size / 2 >= this.door.y && this.player.y - this.player.size / 2 <= this.door.y + this.door.height);
+    }
+
+    movePlayerToNewPosition() {
+        switch (this.door.direction) {
+            case 'north': this.player.y = config.height - this.player.size; break;
+            case 'south': this.player.y = this.player.size; break;
+            case 'east': this.player.x = this.player.size; break;
+            case 'west': this.player.x = config.width - this.player.size; break;
+        }
+    }
+    
+    takeDamage() {
+        this.playerLife -= this.damageTakenMultiplier;
+        this.sound.play('sfx_hurt', { volume: 0.6 });
+        this.isInvulnerable = true;
+        
+        if (this.playerLife <= 0) {
+            this.sound.stopAll();
+            this.sound.play('sfx_gameover');
+            this.scene.start('gameOver');
+            return;
+        }
+
+        let blink = true;
+        const blinkInterval = setInterval(() => { this.player.visible = blink; blink = !blink; }, 75);
+        setTimeout(() => {
+            clearInterval(blinkInterval);
+            this.player.visible = true;
+            this.isInvulnerable = false;
+        }, this.invulnDuration);
+    }
+    
+    separateEnemies(enemies) {
+        for (let i = 0; i < enemies.length; i++) {
+            const e1 = enemies[i]; if (!e1.active) continue;
+            for (let j = i + 1; j < enemies.length; j++) {
+                const e2 = enemies[j]; if (!e2.active) continue;
+                const dx = e2.x - e1.x, dy = e2.y - e1.y, dist = Math.hypot(dx, dy);
+                if (dist > 0 && dist < 33) {
+                    const overlap = (33 - dist) / 2, nx = dx / dist, ny = dy / dist;
+                    e1.x -= nx * overlap; e1.y -= ny * overlap; e2.x += nx * overlap; e2.y += ny * overlap;
+                }
+            }
+        }
+    }
+    
+  spawnBoss() {
+      this.boss = {
+          x: config.width / 2,
+          y: 100,
+          size: 80,
+          life: 200,      // <-- Vida aumentada
+          maxLife: 200,   // <-- Vida máxima aumentada
+          active: true,
+          speed: 60,      // <-- Velocidade inicial um pouco menor
+          phase: 1,
+          attackCooldown: 2500, // <-- Um pouco mais de tempo entre ataques no início
+          lastAttackTime: 0,
+          
+          // Propriedades para os novos ataques
+          spiralAngle: 0,
+          attackPattern: ['spiral'], // Começa apenas com o ataque em espiral
+          isDashing: false,          // Para controlar a investida
+          dashTarget: null           // Para onde a investida vai
+      };
   }
+    
+  bossAttack(time) {
+    if (!this.boss.active || this.boss.isDashing || time < this.boss.lastAttackTime + this.boss.attackCooldown) {
+        return;
+    }
+
+    // --- LÓGICA DE FASES ---
+    const healthPercentage = this.boss.life / this.boss.maxLife;
+
+    // Fase 2: Abaixo de 70% da vida
+    if (this.boss.phase === 1 && healthPercentage <= 0.70) {
+        this.boss.phase = 2;
+        this.boss.speed = 80;
+        this.boss.attackCooldown = 2500;
+        this.boss.attackPattern.push('barrage');
+        this.bossNovaBlast(16);
+    }
+    // Fase 3: Abaixo de 35% da vida
+    else if (this.boss.phase === 2 && healthPercentage <= 0.35) {
+        this.boss.phase = 3;
+        this.boss.speed = 95;
+        this.boss.attackCooldown = 1800;
+        this.boss.attackPattern.push('charge');
+        this.bossNovaBlast(24);
+    }
+
+    this.boss.lastAttackTime = time;
+    const nextAttack = Phaser.Utils.Array.GetRandom(this.boss.attackPattern);
+
+    switch (nextAttack) {
+        // ATAQUE 1: Espiral de Balas (sem alterações)
+        case 'spiral':
+            const spiralBullets = 12;
+            const spiralSpeed = this.boss.phase === 3 ? 220 : 180;
+            const spiralRotation = this.boss.phase === 3 ? 0.7 : 0.5;
+
+            for (let i = 0; i < spiralBullets; i++) {
+                const angle = this.boss.spiralAngle + (i * (2 * Math.PI / spiralBullets));
+                this.enemyBullets.push({
+                    x: this.boss.x, y: this.boss.y,
+                    vx: Math.cos(angle) * spiralSpeed, vy: Math.sin(angle) * spiralSpeed, fromEnemy: true
+                });
+            }
+            this.boss.spiralAngle += spiralRotation;
+            break;
+
+        case 'barrage':
+            const isPhase3 = this.boss.phase === 3;
+            // Número de "ondas" de cones que o chefe vai disparar
+            const barrageStreamCount = isPhase3 ? 5 : 4; 
+            // Número de balas em cada cone
+            const coneBulletCount = isPhase3 ? 5 : 3; 
+            // Ângulo do cone (mais aberto na fase 3)
+            const spreadAngle = isPhase3 ? Math.PI / 6 : Math.PI / 8; // 30 graus na F3, 22.5 na F2
+            // Tempo entre cada onda
+            const delayBetweenWaves = isPhase3 ? 200 : 300;
+            const bulletSpeed = isPhase3 ? 320 : 280;
+
+            // Dispara múltiplas ondas de cones
+            for (let i = 0; i < barrageStreamCount; i++) {
+                this.time.delayedCall(i * delayBetweenWaves, () => {
+                    if (!this.boss.active) return;
+                    
+                    // A mira é recalculada para cada onda, mantendo a característica "perseguidora"
+                    const baseAngle = Math.atan2(this.player.y - this.boss.y, this.player.x - this.boss.x);
+                    
+                    // Dispara todas as balas do cone de uma vez
+                    for (let j = 0; j < coneBulletCount; j++) {
+                        // Calcula o ângulo de cada bala dentro do cone
+                        const angle = baseAngle - (spreadAngle / 2) + (j * (spreadAngle / (coneBulletCount - 1)));
+                        
+                        this.enemyBullets.push({
+                            x: this.boss.x, y: this.boss.y,
+                            vx: Math.cos(angle) * bulletSpeed,
+                            vy: Math.sin(angle) * bulletSpeed,
+                            fromEnemy: true
+                        });
+                    }
+                });
+            }
+            break;
+
+        // ATAQUE 3: Investida Súbita (sem alterações)
+        case 'charge':
+            this.boss.isDashing = true;
+            this.boss.dashTarget = { x: this.player.x, y: this.player.y };
+            break;
+    }
+  }
+
+    bossNovaBlast(bulletCount) {
+      if (!this.boss.active) return;
+      const bulletSpeed = 200;
+      for (let i = 0; i < bulletCount; i++) {
+        const angle = i * (2 * Math.PI / bulletCount);
+        this.enemyBullets.push({
+            x: this.boss.x, y: this.boss.y,
+            vx: Math.cos(angle) * bulletSpeed,
+            vy: Math.sin(angle) * bulletSpeed,
+            fromEnemy: true
+        });
+      }
+    }
+    
+    playMusicForRoom(roomType) {
+        let musicKey = 'theme_combat';
+        if (roomType === 'boss') musicKey = 'theme_boss';
+        else if (roomType === 'item') musicKey = 'theme_item';
+        
+        if (this.currentMusic && this.currentMusic.key === musicKey) return;
+        if (this.currentMusic) this.currentMusic.stop();
+        
+        this.currentMusic = this.sound.add(musicKey, { loop: true, volume: 0.4 });
+        this.currentMusic.play();
+    }
+}
+
+
+// --- DEFINIÇÕES DE DADOS (FORA DAS CENAS) ---
+
+const specialItems = [
+    {
+        name: "Pergaminho da Velocidade",
+        applyEffect: function(scene) { // Agora recebe a cena como parâmetro
+            scene.player.speed *= 1.5;
+            scene.dashSpeedMultiplier *= 1.2;
+            scene.dashCooldown /= 1.25;
+            scene.damageTakenMultiplier *= 2;
+            scene.playerLife += 1;
+        },
+        description: "Velocidade absurda... mas sofra o dobro de dano."
+    },
+    {
+        name: "Pergaminho da Força",
+        applyEffect: function(scene) {
+            scene.player.damageMultiplier = (scene.player.damageMultiplier || 1) * 2.5;
+            scene.playerLife += 4;
+            scene.dashCooldown *= 1.2;
+            scene.dashSpeedMultiplier /= 1.1;
+            scene.player.speed /= 1.1;                            
+        },
+        description: "Dano e vida aumentados... mas seu personagem e dash agora são mais lentos."
+    }, 
+    {
+        name: "Pergaminho do Poder",
+        applyEffect: function(scene) {
+            scene.player.bulletSizeMultiplier = (scene.player.bulletSizeMultiplier || 1) * 2;
+            scene.player.multiShotLevel = (scene.player.multiShotLevel || 0) + 1; 
+            scene.player.damageMultiplier = (scene.player.damageMultiplier || 1) * 0.75;
+            scene.playerLife += 1;
+        },
+        description: "Dobro de tiros, maiores e mais rápidos... mas seu dano é reduzido."
+    }
 ];
-let itemKey;
-let itemDescription = '';
-let itemPickupAvailable = false;
-
-const game = new Phaser.Game(config);
-
-const directions = ['north', 'south', 'east', 'west'];
 
 class Room {
-  constructor(name, type = 'combat', next = null) {
-    this.name = name;
-    this.type = type; // 🆕 Tipo da sala: 'combat', 'item' ou 'boss'
-    this.next = next;
-    this.enemies = [];
-    this.cleared = false;
-    this.exitDirection = null;
-    this.spawned = false;
-    this.item = null; // 🆕 Para salas de item
-  }
-
-    spawnEnemies() {
-    const roomIndex = rooms.indexOf(this);
-    let chanceBonus = Phaser.Math.Between(0, 100) < roomIndex * 2 ? 2 : 0;
-    this.totalEnemiesToSpawn = 3 + Math.floor(roomIndex * 0.75) + chanceBonus;
-    this.maxEnemiesPerWave = Math.min(2 + Math.floor(roomIndex / 3), 4);
-    this.spawnedEnemies = 0;
-    this.waveCooldown = Math.max(10000, 15000 - roomIndex * 100);
-    if (this.type === 'boss' || this.type === 'item') return;
-
-    const spawnWave = () => {
-      if (!rooms[currentRoomIndex] || this.spawnedEnemies >= this.totalEnemiesToSpawn) return;
-
-      let enemiesToSpawnNow = Math.min(
-        this.maxEnemiesPerWave,
-        this.totalEnemiesToSpawn - this.spawnedEnemies
-      );
-
-      for (let i = 0; i < enemiesToSpawnNow; i++) {
-
-      const minSpawnDistanceFromPlayer = 120;
-      let x, y;
-      let attempts = 0;
-      do {
-        x = Phaser.Math.Between(50, config.width - 50);
-        y = Phaser.Math.Between(50, config.height - 50);
-        attempts++;
-      } while (
-        Phaser.Math.Distance.Between(x, y, player.x, player.y) < minSpawnDistanceFromPlayer &&
-        attempts < 20
-      );
-
-        const progress = roomIndex / rooms.length;
-        let type;
-        const rand = Phaser.Math.Between(1, 100);
-
-        if (rand < 25) {
-          type = 'rapido'; 
-        } else if (rand < 50) {
-          type = 'atirador';
-        } else if (rand < 75) {
-          type = 'bruto'; 
-        } else {
-          type = 'normal'; 
-        }
-
-        let shoots = false;
-        let speed = 50;
-        let life = 2;
-        let shootCooldown;
-
-        switch (type) {
-          case 'rapido':
-            speed = 150 + Math.floor(progress * 50);
-            life = 2 + Math.floor(progress * 1);
-            shoots = false;
-            break;
-          case 'atirador':
-            speed = 50 + Math.floor(progress * 15);
-            life = 3 + Math.floor(progress * 2);
-            shoots = true;
-            bulletSpeed = 150 + Math.floor(progress * 50);
-            shootCooldown = Phaser.Math.Between(
-              6000 - Math.floor(progress * 250),
-              7500 - Math.floor(progress * 350)
-            );
-            break;
-          case 'bruto':
-            speed = 125 + Math.floor(progress * 50);
-            life = 5 + Math.floor(progress * 3);
-            shoots = false;
-            break;
-          case 'normal':
-            speed = 75 + Math.floor(progress * 25);
-            life = 3 + Math.floor(progress * 1);
-            bulletSpeed = 275 + Math.floor(progress * 75);
-            shoots = true;
-            shootCooldown = Phaser.Math.Between(
-              1000 - Math.floor(progress * 150),
-              1500 - Math.floor(progress * 150)
-            );
-            break;
-        }
-
-        const enemy = {
-          x,
-          y,
-          size: 30,
-          life,
-          active: true,
-          lastShot: 0,
-          speed,
-          shoots,
-          type
-        };
-
-        if (shoots) {
-          enemy.shootCooldown = shootCooldown;
-          enemy.bulletSpeed = bulletSpeed;
-        }
-
-        this.enemies.push(enemy);
-        this.spawnedEnemies++;
-      }
-
-      if (this.spawnedEnemies < this.totalEnemiesToSpawn) {
-        setTimeout(spawnWave, this.waveCooldown);
-      }
-    };
-
-    spawnWave();
-    this.spawned = true;
-  }
+    constructor(name, type = 'combat', next = null) {
+        this.name = name;
+        this.type = type;
+        this.next = null;
+        this.enemies = [];
+        this.cleared = false;
+        this.exitDirection = null;
+        this.spawned = false;
+        this.item = null;
+    }
 }
 
-function preload() {
-  this.load.audio('theme_combat', 'audio/music-combat.mp3');
-  this.load.audio('theme_item', 'audio/music-item.mp3');
-  this.load.audio('theme_boss', 'audio/music-boss.mp3');
-  this.load.audio('sfx_hurt', 'audio/sfx-hit.wav');
-  this.load.audio('sfx_gameover', 'audio/sfx-game-over.wav');
-  this.load.audio('sfx_dash', 'audio/dash-sound.wav');
-  this.load.audio('sfx_shoot', 'audio/player-shoot.wav');
-}
-
-function create() {
-  this.cameras.main.setBackgroundColor('#111');
-  cursors = this.input.keyboard.addKeys('W,A,S,D');
-
-      shootKeys = this.input.keyboard.addKeys({
-      up: Phaser.Input.Keyboard.KeyCodes.UP,
-      down: Phaser.Input.Keyboard.KeyCodes.DOWN,
-      left: Phaser.Input.Keyboard.KeyCodes.LEFT,
-      right: Phaser.Input.Keyboard.KeyCodes.RIGHT
-    });
-
-  player = { x: 320, y: 240, size: 40, speed: 150 };
-
-  dashKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-
-  itemKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
-
-  hudText = this.add.text(10, 10, '', { font: '16px Arial', fill: '#fff' }).setDepth(1);
-
-  const descriptionBg = this.add.graphics().setDepth(0.9);
-
-  descriptionText = this.add.text(20, 320, '', { // <-- alterado de 420 para 320
-    fontFamily: 'Verdana',
-    fontSize: '12px',
-    color: '#ffffaa',
-    align: 'left',
-    wordWrap: { width: config.width - 40 },
-    lineSpacing: 6,
-    stroke: '#000000',
-    strokeThickness: 3,
-    shadow: {
-      offsetX: 2,
-      offsetY: 2,
-      color: '#000000',
-      blur: 2,
-      stroke: true,
-      fill: true
-    }
-  }).setDepth(1);
-
-  descriptionBg.fillStyle(0x000000, 0.7);
-  descriptionBg.fillRoundedRect(10, 310, config.width - 20, 40, 10); // <-- alterado de 410 para 310
-
-  // Atualiza dinamicamente o fundo conforme o tamanho do texto
-  this.events.on('postupdate', () => {
-    if (descriptionText.text.length > 0) {
-      const textHeight = descriptionText.height + 16;
-      descriptionBg.clear();
-      descriptionBg.fillStyle(0x000000, 0.7);
-      descriptionBg.fillRoundedRect(10, 310, config.width - 20, textHeight, 10); // <-- alterado de 410 para 310
-      descriptionText.setY(320 + (textHeight - descriptionText.height - 16) / 2); // <-- alterado de 420 para 320
-    } else {
-      descriptionBg.clear();
-    }
-  });
-
-  createRooms();
-  setDoorPosition();
-  playMusicForRoom(this, 'combat');
-}
-
-function createRooms() {
-  const maxRooms = 13;
-  const roomSequence = [
-    'combat', 'combat', 'combat', 'item',
-    'combat', 'combat', 'combat', 'item',
-    'combat', 'combat', 'combat', 'item',
-    'boss'
-  ];
-
-  rooms = [];
-
-  const opposites = {
-    north: 'south',
-    south: 'north',
-    east: 'west',
-    west: 'east'
-  };
-
-  const dirOffsets = {
-    north: { x: 0, y: -1 },
-    south: { x: 0, y: 1 },
-    east: { x: 1, y: 0 },
-    west: { x: -1, y: 0 }
-  };
-
-  let currentPos = { x: 0, y: 0 };
-  let usedPositions = new Set(["0,0"]);
-  let previousDirection = null;
-
-  for (let i = 0; i < roomSequence.length; i++) {
-    const type = roomSequence[i];
-    const room = new Room(`Sala ${i + 1} - ${type}`);
-    room.type = type;
-    room.gridPos = { ...currentPos };
-    rooms.push(room);
-
-    if (type === 'item') {
-      const item = Phaser.Utils.Array.GetRandom(specialItems);
-      room.item = item;
-    }
-
-    const possibleDirs = directions.filter(dir =>
-      dir !== opposites[previousDirection] && dir !== previousDirection
-    );
-
-    let chosenDir = null;
-    let attempts = 0;
-
-    while (possibleDirs.length > 0 && attempts < 10) {
-      const dir = Phaser.Utils.Array.RemoveRandomElement(possibleDirs);
-      const offset = dirOffsets[dir];
-      const nextX = currentPos.x + offset.x;
-      const nextY = currentPos.y + offset.y;
-      const key = `${nextX},${nextY}`;
-
-      if (!usedPositions.has(key)) {
-        chosenDir = dir;
-        currentPos = { x: nextX, y: nextY };
-        usedPositions.add(key);
-        break;
-      }
-
-      attempts++;
-    }
-
-    room.exitDirection = chosenDir;
-    previousDirection = chosenDir;
-
-    if (!chosenDir) break;
-  }
-
-  for (let i = 0; i < rooms.length - 1; i++) {
-    rooms[i].next = rooms[i + 1];
-  }
-
-  currentRoomIndex = 0;
-  visitedRooms = new Set([0]);
-
-    setTimeout(() => {
-      const firstRoom = rooms[0];
-      if (firstRoom.type === 'combat') {
-        firstRoom.spawnEnemies();
-        firstRoom.spawned = true;
-      }
-    }, 750);
-
-      rooms.forEach(room => {
-    if (room.type === 'item') {
-      room.cleared = true;
-    }
-  });
-
-}
-
-function setDoorPosition() {
-  const currentRoom = rooms[currentRoomIndex];
-  const dir = currentRoom.exitDirection;
-  door.direction = dir;
-  door.open = false;
-
-  if (currentRoom.type === 'item') {
-    door.open = true;
-  } else {
-    door.open = false;
-  }
-
-  switch (dir) {
-    case 'north':
-      door.x = config.width / 2 - door.width / 2;
-      door.y = 0;
-      break;
-    case 'south':
-      door.x = config.width / 2 - door.width / 2;
-      door.y = config.height - door.height;
-      break;
-    case 'east':
-      door.x = config.width - door.width;
-      door.y = config.height / 2 - door.height / 2;
-      break;
-    case 'west':
-      door.x = 0;
-      door.y = config.height / 2 - door.height / 2;
-      break;
-  }
-}
-
-function update(time, delta) {
-
-  const speed = player.speed * (delta / 1000);
-  let dx = 0;
-  let dy = 0;
-
-  if (cursors.W.isDown) dy -= 1;
-  if (cursors.S.isDown) dy += 1;
-  if (cursors.A.isDown) dx -= 1;
-  if (cursors.D.isDown) dx += 1;
-
-  if (dx !== 0 || dy !== 0) {
-    const len = Math.hypot(dx, dy);
-    dx /= len;
-    dy /= len;
-
-    const now = time;
-    if (Phaser.Input.Keyboard.JustDown(dashKey) && now - lastDashTime >= dashCooldown) {
-      this.sound.play('sfx_dash');
-      isDashing = true;
-      lastDashTime = now;
-      setTimeout(() => {
-        isDashing = false;
-      }, dashDuration);
-      isInvulnerable = true;
-      setTimeout(() => {
-        isInvulnerable = false;
-      }, dashDuration);
-    }
-
-    const currentSpeed = isDashing ? player.speed * dashSpeedMultiplier : player.speed;
-    
-    player.x += dx * currentSpeed * (delta / 1000);
-    player.y += dy * currentSpeed * (delta / 1000);
-  }
-
-  if (canShoot) {
-  if (shootKeys.up.isDown) {
-    shoot('up', this);
-    canShoot = false;
-    setTimeout(() => canShoot = true, shootCooldown);
-  } else if (shootKeys.down.isDown) {
-    shoot('down', this);
-    canShoot = false;
-    setTimeout(() => canShoot = true, shootCooldown);
-  } else if (shootKeys.left.isDown) {
-    shoot('left', this);
-    canShoot = false;
-    setTimeout(() => canShoot = true, shootCooldown);
-  } else if (shootKeys.right.isDown) {
-    shoot('right', this);
-    canShoot = false;
-    setTimeout(() => canShoot = true, shootCooldown);
-  }
-  }
-
-  player.x = Phaser.Math.Clamp(player.x, player.size / 2, config.width - player.size / 2);
-  player.y = Phaser.Math.Clamp(player.y, player.size / 2, config.height - player.size / 2);
-
-  const currentRoom = rooms[currentRoomIndex];
-
-  currentRoom.enemies.forEach(enemy => {
-    if (!enemy.active) return;
-    const dx = player.x - enemy.x;
-    const dy = player.y - enemy.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist > 0) {
-      enemy.x += (dx / dist) * enemy.speed * (delta / 1000);
-      enemy.y += (dy / dist) * enemy.speed * (delta / 1000);
-    }
-
-    // ➕ Inimigo atira
-   if (enemy.shoots && time - enemy.lastShot > enemy.shootCooldown) {
-    enemyShoot(enemy);
-    enemy.lastShot = time;
-   }
-  });
-
-  if (currentRoom.type === 'item' && currentRoom.item) {
-    const dist = Phaser.Math.Distance.Between(player.x, player.y, config.width / 2, config.height / 2);
-    if (dist < 50) {
-      itemDescription = `${currentRoom.item.name}: ${currentRoom.item.description}\nPressione [ESPAÇO] para pegar.`;
-      itemPickupAvailable = true;
-
-      if (Phaser.Input.Keyboard.JustDown(itemKey)) {
-        currentRoom.item.applyEffect();
-        currentRoom.item = null;
-        itemDescription = '';
-        itemPickupAvailable = false;
-      }
-    } else {
-      itemDescription = '';
-      itemPickupAvailable = false;
-    }
-  }
-
-
-  bullets.forEach(bullet => {
-    bullet.x += bullet.vx * (delta / 1000);
-    bullet.y += bullet.vy * (delta / 1000);
-  });
-
-  bullets = bullets.filter(bullet => {
-    let hit = false;
-    currentRoom.enemies.forEach(enemy => {
-    if (enemy.active && Phaser.Math.Distance.Between(bullet.x, bullet.y, enemy.x, enemy.y) < (enemy.size / 2)) {
-        const damage = (player.damageMultiplier || 1);
-        enemy.life -= damage;
-        bullet.dead = true;
-        if (enemy.life <= 0) {
-          enemy.active = false;
-        }
-        hit = true;
-      }
-    });
-    return !bullet.dead;
-  });
-
-  if (boss && boss.active) {
-    bullets = bullets.filter(bullet => {
-      if (Phaser.Math.Distance.Between(bullet.x, bullet.y, boss.x, boss.y) < (boss.size / 2)) {
-        const damage = (player.damageMultiplier || 1);
-        boss.life -= damage;
-        bullet.dead = true; // Marca a bala para remoção
-
-        if (boss.life <= 0) {
-          boss.active = false;
-          // Vitória! A porta se abrirá
-        }
-        return false; // Remove a bala
-      }
-      return true; // Mantém a bala
-    });
-  }
-  // ➕ movimentação das balas inimigas
-  enemyBullets.forEach(bullet => {
-    bullet.x += bullet.vx * (delta / 1000);
-    bullet.y += bullet.vy * (delta / 1000);
-  });
-
-  enemyBullets = enemyBullets.filter(bullet => {
-  if (
-    Phaser.Math.Distance.Between(bullet.x, bullet.y, player.x, player.y) < player.size / 2 &&
-    !isInvulnerable
-  ) {
-    takeDamage(this); // 👈 Usa a função que ativa invulnerabilidade e piscar
-    return false; // Remove a bala
-  }
-    return bullet.x > 0 && bullet.x < config.width && bullet.y > 0 && bullet.y < config.height;
-  });
-
-  currentRoom.enemies.forEach(enemy => {
-  if (!enemy.active) return;
-  if (Phaser.Math.Distance.Between(player.x, player.y, enemy.x, enemy.y) < (player.size / 2)) {
-    if (!isInvulnerable) {
-        takeDamage(this);
-      }
-    }
-  });
-
-    if (boss && boss.active) {
-    if (Phaser.Math.Distance.Between(player.x, player.y, boss.x, boss.y) < (player.size / 2 + boss.size / 2)) {
-      if (!isInvulnerable) {
-        takeDamage(this);
-      }
-    }
-  }
-
-  if (boss && boss.active) {
-    // Movimento simples do chefe (segue o jogador lentamente)
-    const dx = player.x - boss.x;
-    const dy = player.y - boss.y;
-    const dist = Math.hypot(dx, dy);
-    if (dist > 0) {
-      boss.x += (dx / dist) * boss.speed * (delta / 1000);
-      boss.y += (dy / dist) * boss.speed * (delta / 1000);
-    }
-
-    // Chama a função de ataque do chefe
-    bossAttack(time, this);
-  }
-  
-if (currentRoom.type === 'item') {
-    door.open = true;
-    currentRoom.cleared = true;
-  } else if (!currentRoom.cleared) {
-      // Condição para salas de combate normais
-      const combatRoomCleared = currentRoom.type === 'combat' &&
-                                currentRoom.spawned &&
-                                currentRoom.enemies.length > 0 &&
-                                currentRoom.enemies.every(e => !e.active);
-
-      // Condição para a sala do chefe
-      const bossRoomCleared = currentRoom.type === 'boss' &&
-                              boss && !boss.active;
-
-      if (combatRoomCleared || bossRoomCleared) {
-          currentRoom.cleared = true;
-          door.open = true;
-      }
-  }
-
-  if (door.open && checkPlayerAtDoor()) {
-    if (currentRoom.next) {
-      currentRoomIndex++;
-      visitedRooms.add(currentRoomIndex);
-      bullets = [];
-      enemyBullets = [];
-      movePlayerToNewPosition();
-      setDoorPosition();
-
-      const nextRoom = rooms[currentRoomIndex];
-
-      playMusicForRoom(this, nextRoom.type);
-
-      if (!nextRoom.spawned) {
-        setTimeout(() => {
-          if (nextRoom.type === 'boss') {
-            spawnBoss(this);
-          } else {
-            nextRoom.spawnEnemies();
-          }
-          nextRoom.spawned = true;
-        }, 2000);
-      }
-    } else {
-      // Condição de vitória final
-      alert("Parabéns! Você derrotou o Guardião Final e salvou este mundo!");
-      location.reload();
-    }
-  }
-
-  separateEnemies(currentRoom.enemies);
-  hudText.setText(`Vida: ${Math.ceil(playerLife)} | ${currentRoom.name}`);
-  draw(this);
-
-  descriptionText.setText(itemDescription);
-}
-
-function draw(scene) {
-  scene.cameras.main.setBackgroundColor('#111');
-  scene.children.list.forEach(child => {
-    if (child.type === "Graphics") child.destroy();
-  });
-
-  const g = scene.add.graphics();
-
-  // Porta
-  g.fillStyle(door.open ? 0x00ff00 : 0xff0000, 1);
-  g.fillRect(door.x, door.y, door.width, door.height);
-
-  // Jogador
-  if (player.visible !== false) {
-    g.fillStyle(0x00ff00, 1);
-    g.fillRect(
-      player.x - player.size / 2,
-      player.y - player.size / 2,
-      player.size,
-      player.size
-    );
-  }
-
-  // Inimigos
-  const currentRoom = rooms[currentRoomIndex];
-  currentRoom.enemies.forEach(enemy => {
-    if (!enemy.active) return;
-    let color = 0xff0000;
-    switch (enemy.type) {
-      case 'bruto': color = 0xff9900; break;
-      case 'rapido': color = 0x66ccff; break;
-      case 'atirador': color = 0x000080; break;
-    }
-    g.fillStyle(color, 1);
-    g.fillRect(
-      enemy.x - enemy.size / 2,
-      enemy.y - enemy.size / 2,
-      enemy.size,
-      enemy.size
-    );
-  });
-
-  if (boss && boss.active) {
-    // Corpo do chefe
-    g.fillStyle(0x8B008B, 1); // Roxo escuro
-    g.fillRect(
-      boss.x - boss.size / 2,
-      boss.y - boss.size / 2,
-      boss.size,
-      boss.size
-    );
-
-    // Barra de vida do chefe
-    const healthBarWidth = 150;
-    const healthBarHeight = 15;
-    const healthBarX = config.width / 2 - healthBarWidth / 2;
-    const healthBarY = 20;
-
-    // Fundo da barra de vida
-    g.fillStyle(0x333333, 1);
-    g.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
-
-    // Vida atual
-    const currentHealthWidth = (boss.life / boss.maxLife) * healthBarWidth;
-    g.fillStyle(0xff0000, 1);
-    g.fillRect(healthBarX, healthBarY, currentHealthWidth, healthBarHeight);
-  }
-
-  // 🔥 Balas do jogador com tamanho dinâmico
-  bullets.forEach(bullet => {
-    const s = bullet.size; // Usa o tamanho da bala corretamente
-    g.fillStyle(0xffff00, 1);
-    g.fillRect(
-      bullet.x - s / 2,
-      bullet.y - s / 2,
-      s,
-      s
-    );
-  });
-
-  // ➕ Balas dos inimigos (mantém o tamanho padrão delas)
-  enemyBullets.forEach(bullet => {
-    g.fillStyle(0xff00ff, 1);
-    g.fillRect(bullet.x - 4, bullet.y - 4, 8, 8);
-  });
-
-  // Item (pergaminho)
-  if (currentRoom.type === 'item' && currentRoom.item) {
-    g.fillStyle(0xffff00, 1);
-    g.fillRect(
-      config.width / 2 - 15,
-      config.height / 2 - 15,
-      30,
-      30
-    );
-  }
-}
-
-function shoot(direction, scene) {
-
-  scene.sound.play('sfx_shoot', { volume: 0.3 });
-
-  const baseSpeed = 300;
-  let baseAngle = 0;
-
-  switch (direction) {
-    case 'up': baseAngle = -Math.PI / 2; break;
-    case 'down': baseAngle = Math.PI / 2; break;
-    case 'left': baseAngle = Math.PI; break;
-    case 'right': baseAngle = 0; break;
-  }
-
-  const sizeMultiplier = player.bulletSizeMultiplier || 1;
-  const bulletSize = 8 * sizeMultiplier;  
-
-  const level = player.multiShotLevel || 0;
-  const numberOfBullets = Math.pow(2, level); // 1, 2, 4, 8...
-
-  const spreadAngle = 0.2;
-
-  for (let i = 0; i < numberOfBullets; i++) {
-    // Distribui os tiros simetricamente em arco
-    const angleOffset = (i - (numberOfBullets - 1) / 2) * spreadAngle;
-    const angle = baseAngle + angleOffset;
-
-    const vx = Math.cos(angle) * baseSpeed;
-    const vy = Math.sin(angle) * baseSpeed;
-
-    let bullet = {
-      x: player.x,
-      y: player.y,
-      vx: vx,
-      vy: vy,
-      size: bulletSize
-    };
-    bullets.push(bullet);
-  }
-}
-
-// ➕ função inimigo atira
-function enemyShoot(enemy) {
-  if (!enemy.active || enemy.life <= 0 || !enemy.shoots) return;
-
-  const now = Date.now();
-  if (now - (enemy.lastShot || 0) < enemy.shootCooldown) return;
-  enemy.lastShot = now;
-
-  if (enemy.type === 'atirador') {
-    // Rajada em arco
-    const numBullets = 9;
-    const spread = Math.PI / 2; // 90 graus
-    const baseAngle = Math.atan2(player.y - enemy.y, player.x - enemy.x);
-    const startAngle = baseAngle - spread / 2;
-    const delayPerShot = 50;
-
-    for (let i = 0; i < numBullets; i++) {
-      setTimeout(() => {
-        if (!enemy.active || enemy.life <= 0) return;
-
-        const angle = startAngle + (spread / (numBullets - 1)) * i;
-        const vx = Math.cos(angle) * enemy.bulletSpeed;
-        const vy = Math.sin(angle) * enemy.bulletSpeed;
-
-        const bullet = {
-          x: enemy.x,
-          y: enemy.y,
-          vx,
-          vy,
-          fromEnemy: true
-        };
-
-        enemyBullets.push(bullet);
-      }, i * delayPerShot);
-    }
-  } else {
-    // Tiro único normal
-    const dx = player.x - enemy.x;
-    const dy = player.y - enemy.y;
-    const len = Math.hypot(dx, dy);
-    const bullet = {
-      x: enemy.x,
-      y: enemy.y,
-      vx: (dx / len) * enemy.bulletSpeed,
-      vy: (dy / len) * enemy.bulletSpeed,
-      fromEnemy: true
-    };
-    enemyBullets.push(bullet);
-  }
-}
-
-
-function checkPlayerAtDoor() {
-  return (
-    player.x + player.size / 2 >= door.x &&
-    player.x - player.size / 2 <= door.x + door.width &&
-    player.y + player.size / 2 >= door.y &&
-    player.y - player.size / 2 <= door.y + door.height
-  );
-}
-
-function movePlayerToNewPosition() {
-  switch (door.direction) {
-    case 'north':
-      player.y = config.height - player.size;
-      break;
-    case 'south':
-      player.y = player.size;
-      break;
-    case 'east':
-      player.x = player.size;
-      break;
-    case 'west':
-      player.x = config.width - player.size;
-      break;
-  }
-}
-
-function takeDamage(scene) {
-  const damage = 1 * damageTakenMultiplier;
-  playerLife -= damage;
-
-  scene.sound.play('sfx_hurt', { volume: 0.6 });
-
-  isInvulnerable = true;
-  lastDamageTime = Date.now();
-
-  if (playerLife <= 0) {
-    scene.sound.stopAll();
-    scene.sound.play('sfx_gameover');
-    alert("Game Over!");
-    location.reload();
-    return;
-  }
-
-  let blink = true;
-  blinkInterval = setInterval(() => {
-    player.visible = blink;
-    blink = !blink;
-  }, 75);
-
-  setTimeout(() => {
-    clearInterval(blinkInterval);
-    player.visible = true;
-    isInvulnerable = false;
-  }, invulnDuration);
-}
-
-function separateEnemies(enemies) {
-  const minDistance = 33; // distância mínima entre centros dos inimigos
-
-  for (let i = 0; i < enemies.length; i++) {
-    const e1 = enemies[i];
-    if (!e1.active) continue;
-
-    for (let j = i + 1; j < enemies.length; j++) {
-      const e2 = enemies[j];
-      if (!e2.active) continue;
-
-      const dx = e2.x - e1.x;
-      const dy = e2.y - e1.y;
-      const dist = Math.hypot(dx, dy);
-
-      if (dist > 0 && dist < minDistance) {
-        const overlap = (minDistance - dist) / 2;
-        const nx = dx / dist;
-        const ny = dy / dist;
-
-        e1.x -= nx * overlap;
-        e1.y -= ny * overlap;
-        e2.x += nx * overlap;
-        e2.y += ny * overlap;
-      }
-    }
-  }
-}
-
-function spawnBoss(scene) {
-  boss = {
-    x: config.width / 2,
-    y: 100,
-    size: 80,
-    life: 100,
-    maxLife: 100,
-    active: true,
-    speed: 75,
-    phase: 1, // O chefe terá fases diferentes
-    attackCooldown: 2500, // Tempo entre ataques
-    lastAttackTime: 0,
-    // Para o ataque em espiral
-    spiralAngle: 0
-  };
-}
-
-function bossAttack(time, scene) {
-  if (!boss || !boss.active || time < boss.lastAttackTime + boss.attackCooldown) {
-    return;
-  }
-  boss.lastAttackTime = time;
-
-  // Lógica de ataque baseada na fase (vida)
-  const lifePercent = boss.life / boss.maxLife;
-
-  // Fase 2: Abaixo de 50% de vida
-  if (lifePercent < 0.5 && boss.phase === 1) {
-    boss.phase = 2;
-    boss.speed *= 1.5; // Fica mais rápido
-    boss.attackCooldown = 1800; // Ataca mais rápido
-    // Efeito visual ou sonoro de fúria poderia ser adicionado aqui
-  }
-
-  // Escolhe um ataque aleatório
-  const attackType = Phaser.Math.Between(1, 3);
-
-  if (attackType === 1) { // Ataque 1: Rajada de tiros teleguiados
-    const numBullets = (boss.phase === 1) ? 3 : 5;
-    const delayPerShot = 150;
-    for (let i = 0; i < numBullets; i++) {
-      setTimeout(() => {
-        if (!boss.active) return;
-        const dx = player.x - boss.x;
-        const dy = player.y - boss.y;
-        const len = Math.hypot(dx, dy);
-        enemyBullets.push({
-          x: boss.x, y: boss.y,
-          vx: (dx / len) * 200, vy: (dy / len) * 200,
-          fromEnemy: true
-        });
-      }, i * delayPerShot);
-    }
-  } else { // Ataque 2: Espiral de projéteis
-    const numBulletsInSpiral = 16;
-    for (let i = 0; i < numBulletsInSpiral; i++) {
-        const angle = boss.spiralAngle + (i * (2 * Math.PI / numBulletsInSpiral));
-        const bulletSpeed = (boss.phase === 1) ? 150 : 200;
-        const vx = Math.cos(angle) * bulletSpeed;
-        const vy = Math.sin(angle) * bulletSpeed;
-        enemyBullets.push({ x: boss.x, y: boss.y, vx, vy, fromEnemy: true });
-    }
-    boss.spiralAngle += 0.5; // Rotaciona a espiral para o próximo ataque
-  }
-}
-
-function playMusicForRoom(scene, roomType) {
-  let musicKey;
-
-  // Decide qual música tocar com base no tipo da sala
-  if (roomType === 'boss') {
-    musicKey = 'theme_boss';
-  } else if (roomType === 'item') {
-    musicKey = 'theme_item';
-  } else {
-    musicKey = 'theme_combat';
-  }
-
-  // Se a música certa já estiver tocando, não faz nada
-  if (currentMusic && currentMusic.key === musicKey) {
-    return;
-  }
-
-  // Para qualquer música que estiver tocando
-  if (currentMusic) {
-    currentMusic.stop();
-  }
-
-  // Toca a nova música em loop e com volume mais baixo
-  currentMusic = scene.sound.add(musicKey, { loop: true, volume: 0.4 });
-  currentMusic.play();
-}
-
+// --- CONFIGURAÇÃO E INICIALIZAÇÃO DO JOGO ---
+
+const config = {
+    type: Phaser.AUTO,
+    width: 650,
+    height: 450,
+    physics: {
+        default: 'arcade',
+        arcade: { debug: false }
+    },
+    scene: [StartScene, GameScene, GameOverScene, VictoryScene]
+};
+
+const game = new Phaser.Game(config);
+</script>
+
+</body>
 </script>
 </body>
 </html>
