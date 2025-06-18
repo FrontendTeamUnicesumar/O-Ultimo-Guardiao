@@ -194,6 +194,8 @@ class GameScene extends Phaser.Scene {
 
         this.load.image('normal_enemy', 'images/characters/olho/inimigo olhos.PNG');
         this.load.image('atirador_enemy', 'images/characters/morte/inimigo morte.PNG');
+        this.load.image('rapido_enemy', 'images/characters/monstro/inimigo monstros.PNG');
+
 
         this.load.audio('theme_combat', 'audio/music-combat.mp3');
         this.load.audio('theme_item', 'audio/music-item.mp3');
@@ -266,7 +268,7 @@ class GameScene extends Phaser.Scene {
 
         const currentRoom = this.rooms[this.currentRoomIndex];
         currentRoom.enemies.forEach(enemy => {
-            if ((enemy.type === 'normal' || enemy.type === 'atirador') && enemy.sprite) {
+            if ((enemy.type === 'normal' || enemy.type === 'atirador' || enemy.type === 'rapido') && enemy.sprite) {
                 enemy.sprite.setPosition(enemy.x, enemy.y);
                 enemy.sprite.setVisible(enemy.active);
             }
@@ -555,11 +557,10 @@ class GameScene extends Phaser.Scene {
         const currentRoom = this.rooms[this.currentRoomIndex];
         currentRoom.enemies.forEach(enemy => {
             if (!enemy.active) return;
-            if (enemy.type !== 'normal' && enemy.type !== 'atirador') {
+            if (enemy.type !== 'normal' && enemy.type !== 'atirador' && enemy.type !== 'rapido') {
                 let color;
                 switch (enemy.type) {
                     case 'bruto': color = 0xff9900; break;
-                    case 'rapido': color = 0x66ccff; break;
                 }
                 this.graphics.fillStyle(color, 1);
                 this.graphics.fillRect(enemy.x - enemy.size / 2, enemy.y - enemy.size / 2, enemy.size, enemy.size);
@@ -666,6 +667,10 @@ class GameScene extends Phaser.Scene {
                 enemy.sprite.setDisplaySize(enemy.size, enemy.size);
             }
 
+            if (type === 'rapido') {
+                enemy.sprite = this.add.sprite(x, y, 'rapido_enemy').setOrigin(0.5);
+                enemy.sprite.setDisplaySize(enemy.size, enemy.size);
+            }
 
             if (shoots) { enemy.shootCooldown = shootCooldown; enemy.bulletSpeed = bulletSpeed; }
             room.enemies.push(enemy);
@@ -712,7 +717,7 @@ class GameScene extends Phaser.Scene {
         this.player.currentDirection = direction;
         this.player.lastShootDirection = direction;
         this.player.sprite.setTexture('player_' + direction);
-        this.player.lookDirectionLockUntil = this.time.now + 500; // 500 ms de lock (ajuste se quiser mais/menos)
+        this.player.lookDirectionLockUntil = this.time.now + 500;
         this.player.hasShotThisFrame = true;
     }
 
