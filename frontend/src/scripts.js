@@ -198,6 +198,9 @@ class GameScene extends Phaser.Scene {
         this.load.image('bruto_enemy_right', 'images/characters/estatua/inimigo estatua direita.png');
         this.load.image('bruto_enemy_left', 'images/characters/estatua/inimigo estatua.png');
 
+        this.load.image('boss_left', 'images/characters/boss/boss-image-esquerda.png');
+        this.load.image('boss_right', 'images/characters/boss/boss-image-direita.png');
+
         this.load.audio('theme_combat', 'audio/music-combat.mp3');
         this.load.audio('theme_item', 'audio/music-item.mp3');
         this.load.audio('theme_boss', 'audio/music-boss.mp3');
@@ -398,22 +401,24 @@ class GameScene extends Phaser.Scene {
             }
         });
 
-        if (this.boss && this.boss.active) {
-            if (this.boss.isDashing) {
-                const dx = this.boss.dashTarget.x - this.boss.x;
-                const dy = this.boss.dashTarget.y - this.boss.y;
-                const dist = Math.hypot(dx, dy);
+            if (this.boss && this.boss.active) {
+                let dx_boss = 0;
+
+                if (this.boss.isDashing) {
+                    dx_boss = this.boss.dashTarget.x - this.boss.x;
+                    const dy = this.boss.dashTarget.y - this.boss.y;
+                    const dist = Math.hypot(dx_boss, dy);
                 const dashSpeed = 450;
 
                 if (dist > 20) {
-                    this.boss.x += (dx / dist) * dashSpeed * (delta / 1000);
-                    this.boss.y += (dy / dist) * dashSpeed * (delta / 1000);
+                this.boss.x += (dx_boss / dist) * dashSpeed * (delta / 1000);
+                this.boss.y += (dy / dist) * dashSpeed * (delta / 1000);
                 } else {
-                    this.boss.isDashing = false;
+                this.boss.isDashing = false;
 
-                    const shotgunBullets = 7;
-                    const spreadAngle = Math.PI / 4;
-                    const baseAngle = Math.atan2(this.player.y - this.boss.y, this.player.x - this.boss.x);
+                const shotgunBullets = 7;
+                const spreadAngle = Math.PI / 4;
+                const baseAngle = Math.atan2(this.player.y - this.boss.y, this.player.x - this.boss.x);
 
                     for (let i = 0; i < shotgunBullets; i++) {
                         const angle = baseAngle - (spreadAngle / 2) + (i * (spreadAngle / (shotgunBullets - 1)));
@@ -425,18 +430,27 @@ class GameScene extends Phaser.Scene {
                         });
                     }
                 }
-            } else {
-
-                const dx = this.player.x - this.boss.x;
-                const dy = this.player.y - this.boss.y;
-                const dist = Math.hypot(dx, dy);
-                if (dist > 0) {
-                    this.boss.x += (dx / dist) * this.boss.speed * (delta / 1000);
-                    this.boss.y += (dy / dist) * this.boss.speed * (delta / 1000);
+                } else {
+                    dx_boss = this.player.x - this.boss.x;
+                    const dy = this.player.y - this.boss.y;
+                    const dist = Math.hypot(dx_boss, dy);
+                    if (dist > 0) {
+                
+                        this.boss.x += (dx_boss / dist) * this.boss.speed * (delta / 1000);
+                        this.boss.y += (dy / dist) * this.boss.speed * (delta / 1000);
+                    }
                 }
+                if (this.boss.sprite) {
+                    this.boss.sprite.setPosition(this.boss.x, this.boss.y);
+                    const newDirection = dx_boss >= 0 ? 'right' : 'left';
+                    if (this.boss.direction !== newDirection) {
+                        this.boss.direction = newDirection;
+                        this.boss.sprite.setTexture('boss_' + newDirection);
+                    }
+                }
+                
+                this.bossAttack(time);
             }
-            this.bossAttack(time);
-        }
 
     }
 
@@ -480,9 +494,17 @@ class GameScene extends Phaser.Scene {
             });
             if (this.boss && this.boss.active && !this.boss.isDashing && Phaser.Math.Distance.Between(bullet.x, bullet.y, this.boss.x, this.boss.y) < (this.boss.size / 2)) {
                 this.boss.life -= (this.player.damageMultiplier || 1);
-                if (this.boss.life <= 0) this.boss.active = false;
+                if (this.boss.life <= 0) {
+                    this.boss.active = false;
+
+                    if (this.boss.sprite) {
+                        this.boss.sprite.destroy();
+                    }
+                }
                 hit = true;
+                
             }
+
             return !hit && bullet.x > 0 && bullet.x < config.width && bullet.y > 0 && bullet.y < config.height;
         });
 
@@ -594,8 +616,6 @@ class GameScene extends Phaser.Scene {
         });
 
         if (this.boss && this.boss.active) {
-            this.graphics.fillStyle(0x8B008B, 1);
-            this.graphics.fillRect(this.boss.x - this.boss.size / 2, this.boss.y - this.boss.size / 2, this.boss.size, this.boss.size);
             const healthBarWidth = 150, healthBarHeight = 15, healthBarX = config.width / 2 - healthBarWidth / 2, healthBarY = 20;
             this.graphics.fillStyle(0x333333, 1);
             this.graphics.fillRect(healthBarX, healthBarY, healthBarWidth, healthBarHeight);
@@ -657,7 +677,7 @@ class GameScene extends Phaser.Scene {
         }
 
         const roomIndex = this.currentRoomIndex;
-        let totalEnemiesToSpawn = 2 + Math.floor(roomIndex * 0.5);
+        let totalEnemiesToSpawn = 1 + Math.floor(roomIndex * 0);
         for (let i = 0; i < totalEnemiesToSpawn; i++) {
             let x, y;
             do {
@@ -851,7 +871,7 @@ class GameScene extends Phaser.Scene {
         this.boss = {
             x: config.width / 2,
             y: 100,
-            size: 80,
+            size: 128,
             life: 200,
             maxLife: 200,
             active: true,
@@ -859,13 +879,16 @@ class GameScene extends Phaser.Scene {
             phase: 1,
             attackCooldown: 2500,
             lastAttackTime: 0,
-
-
             spiralAngle: 0,
             attackPattern: ['spiral'],
             isDashing: false,
             dashTarget: null
         };
+
+        this.boss.direction = 'right';
+        this.boss.sprite = this.add.sprite(this.boss.x, this.boss.y, 'boss_right');
+        this.boss.sprite.setDisplaySize(this.boss.size, this.boss.size);
+        this.boss.sprite.setDepth(0.9);
     }
 
     bossAttack(time) {
