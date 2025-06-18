@@ -42,7 +42,7 @@ let enemyBullets = [];  // ➕ balas inimigas
 let canShoot = true;
 let shootCooldown = 400;
 let mousePointer;
-let playerLife = 3;
+let playerLife = 5;
 let hudText;
 let currentRoomIndex = 0;
 let rooms = [];
@@ -52,7 +52,7 @@ let miniMap = [];  // Armazena posições das salas
 let miniMapOffset = { x: 3, y: 3 }; // Posição inicial no meio de uma grade 7x7
 let visitedRooms = new Set();
 let isInvulnerable = false;
-let invulnDuration = 1500; // milissegundos
+let invulnDuration = 2000; // milissegundos
 let lastDamageTime = 0;
 let blinkInterval;
 let bulletSpeed;
@@ -79,20 +79,20 @@ let specialItems = [
   {
     name: "Pergaminho da Força",
     applyEffect: function() {
-      player.damageMultiplier = (player.damageMultiplier || 1) * 2; // dobra o dano
+      player.damageMultiplier = (player.damageMultiplier || 1) * 2.5; // dobra o dano
       playerLife += 4; // aumenta a vida do jogador
-      dashCooldown *= 1.5; // aumenta o cooldown do dash
-      dashSpeedMultiplier /= 1.2; // reduz a velocidade do dash 
+      dashCooldown *= 1.2; // aumenta o cooldown do dash
+      dashSpeedMultiplier /= 1.1; // reduz a velocidade do dash 
       player.speed /= 1.1; // reduz a velocidade do jogador                            
     },
-    description: "Dano dobrado e vida aumetada... mas seu personagem e dash agora são mais lentos."
+    description: "Dano e vida aumetados... mas seu personagem e dash agora são mais lentos."
   }, 
   {
     name: "Pergaminho do Poder",
     applyEffect: function() {
       player.bulletSizeMultiplier = (player.bulletSizeMultiplier || 1) * 2; // Aumenta o tamanho do tiro em 50%
       player.multiShotLevel = (player.multiShotLevel || 0) + 1; 
-      player.damageMultiplier = (player.damageMultiplier || 1) * 0.65; // Reduz o dano para 65%
+      player.damageMultiplier = (player.damageMultiplier || 1) * 0.75; // Reduz o dano para 65%
       playerLife += 1;
     },
     description: "Dobro de tiros, maiores e mais rápidos... mas seu dano é reduzido."
@@ -122,9 +122,9 @@ class Room {
     const roomIndex = rooms.indexOf(this);
     let chanceBonus = Phaser.Math.Between(0, 100) < roomIndex * 2 ? 2 : 0;
     this.totalEnemiesToSpawn = 3 + Math.floor(roomIndex * 0.75) + chanceBonus;
-    this.maxEnemiesPerWave = Math.min(4 + Math.floor(roomIndex / 3), 10);
+    this.maxEnemiesPerWave = Math.min(2 + Math.floor(roomIndex / 3), 4);
     this.spawnedEnemies = 0;
-    this.waveCooldown = Math.max(4000, 6000 - roomIndex * 100);
+    this.waveCooldown = Math.max(10000, 15000 - roomIndex * 100);
     if (this.type === 'boss' || this.type === 'item') return;
 
     const spawnWave = () => {
@@ -171,32 +171,32 @@ class Room {
         switch (type) {
           case 'rapido':
             speed = 150 + Math.floor(progress * 50);
-            life = 2 + Math.floor(progress * 2);
+            life = 2 + Math.floor(progress * 1);
             shoots = false;
             break;
           case 'atirador':
             speed = 50 + Math.floor(progress * 15);
-            life = 3 + Math.floor(progress * 3);
+            life = 3 + Math.floor(progress * 2);
             shoots = true;
             bulletSpeed = 150 + Math.floor(progress * 50);
             shootCooldown = Phaser.Math.Between(
-              5000 - Math.floor(progress * 250),
+              6000 - Math.floor(progress * 250),
               7500 - Math.floor(progress * 350)
             );
             break;
           case 'bruto':
             speed = 125 + Math.floor(progress * 50);
-            life = 5 + Math.floor(progress * 10);
+            life = 5 + Math.floor(progress * 3);
             shoots = false;
             break;
           case 'normal':
             speed = 75 + Math.floor(progress * 25);
-            life = 3 + Math.floor(progress * 3);
+            life = 3 + Math.floor(progress * 1);
             bulletSpeed = 275 + Math.floor(progress * 75);
             shoots = true;
             shootCooldown = Phaser.Math.Between(
-              750 - Math.floor(progress * 150),
-              800 - Math.floor(progress * 150)
+              1000 - Math.floor(progress * 150),
+              1500 - Math.floor(progress * 150)
             );
             break;
         }
@@ -238,6 +238,7 @@ function preload() {
   this.load.audio('theme_boss', 'audio/music-boss.mp3');
   this.load.audio('sfx_hurt', 'audio/sfx-hit.wav');
   this.load.audio('sfx_gameover', 'audio/sfx-game-over.wav');
+  this.load.audio('sfx_dash', 'audio/dash-sound.wav');
 }
 
 function create() {
@@ -445,6 +446,7 @@ function update(time, delta) {
 
     const now = time;
     if (Phaser.Input.Keyboard.JustDown(dashKey) && now - lastDashTime >= dashCooldown) {
+      this.sound.play('sfx_dash');
       isDashing = true;
       lastDashTime = now;
       setTimeout(() => {
@@ -649,7 +651,7 @@ if (currentRoom.type === 'item') {
             nextRoom.spawnEnemies();
           }
           nextRoom.spawned = true;
-        }, 750);
+        }, 2000);
       }
     } else {
       // Condição de vitória final
@@ -763,7 +765,7 @@ function draw(scene) {
   }
 }
 
-function shoot(direction) {
+function shoot(direction, scene) {
   const baseSpeed = 300;
   let baseAngle = 0;
 
@@ -775,7 +777,7 @@ function shoot(direction) {
   }
 
   const sizeMultiplier = player.bulletSizeMultiplier || 1;
-  const bulletSize = 8 * sizeMultiplier;
+  const bulletSize = 8 * sizeMultiplier;  
 
   const level = player.multiShotLevel || 0;
   const numberOfBullets = Math.pow(2, level); // 1, 2, 4, 8...
@@ -1011,7 +1013,7 @@ function playMusicForRoom(scene, roomType) {
   if (roomType === 'boss') {
     musicKey = 'theme_boss';
   } else if (roomType === 'item') {
-    musicKey = 'theme_calm';
+    musicKey = 'theme_item';
   } else {
     musicKey = 'theme_combat';
   }
